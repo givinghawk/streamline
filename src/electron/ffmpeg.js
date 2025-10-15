@@ -212,23 +212,29 @@ async function getFileInfo(filePath) {
 function parseProbeData(data, filePath) {
   const { format, streams } = data;
   
+  // Check if this is an image file
+  const ext = path.extname(filePath).toLowerCase();
+  const imageExtensions = ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp', '.tiff', '.tif', '.heic', '.heif', '.avif'];
+  const isImage = imageExtensions.includes(ext);
+  
   const videoStreams = streams.filter(s => s.codec_type === 'video');
   const audioStreams = streams.filter(s => s.codec_type === 'audio');
   const subtitleStreams = streams.filter(s => s.codec_type === 'subtitle');
 
+  // For images, don't return video stream info (images appear as single-frame video to ffprobe)
   const info = {
     filePath,
     fileName: path.basename(filePath),
     format: {
       container: format.format_long_name,
-      duration: parseFloat(format.duration),
-      durationFormatted: formatDuration(parseFloat(format.duration)),
+      duration: isImage ? 0 : parseFloat(format.duration),
+      durationFormatted: isImage ? 'N/A' : formatDuration(parseFloat(format.duration)),
       size: parseInt(format.size),
       sizeFormatted: formatBytes(parseInt(format.size)),
-      bitrate: parseInt(format.bit_rate),
-      bitrateFormatted: formatBitrate(parseInt(format.bit_rate)),
+      bitrate: isImage ? 0 : parseInt(format.bit_rate),
+      bitrateFormatted: isImage ? 'N/A' : formatBitrate(parseInt(format.bit_rate)),
     },
-    video: videoStreams.map(v => ({
+    video: isImage ? [] : videoStreams.map(v => ({
       index: v.index,
       codec: v.codec_long_name,
       codecShort: v.codec_name,
