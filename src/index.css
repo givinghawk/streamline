@@ -1,0 +1,239 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    border-color: #374151; /* gray-700 for dark mode */
+  }
+  
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  }
+
+  /* Light theme overrides */
+  .light * {
+    border-color: #d1d5db; /* gray-300 for light mode */
+  }
+
+  /* Text color fixes for light mode */
+  .light .text-white {
+    color: #111827 !important; /* gray-900 */
+  }
+  
+  .light .text-gray-300 {
+    color: #374151 !important; /* gray-700 */
+  }
+  
+  .light .text-gray-400 {
+    color: #6b7280 !important; /* gray-500 */
+  }
+  
+  .light .text-gray-500 {
+    color: #6b7280 !important; /* gray-500 */
+  }
+
+  /* Background color fixes for light mode */
+  .light .bg-surface {
+    background-color: #f5f5f5 !important; /* light-surface */
+  }
+  
+  .light .bg-surface-elevated {
+    background-color: #ffffff !important; /* white */
+  }
+  
+  .light .bg-surface-elevated2 {
+    background-color: #fafafa !important; /* very light gray */
+  }
+  
+  .light .bg-surface-elevated3 {
+    background-color: #f0f0f0 !important; /* light gray */
+  }
+
+  /* Hover states for light mode */
+  .light .hover\:bg-surface-elevated2:hover {
+    background-color: #f0f0f0 !important;
+  }
+  
+  .light .hover\:bg-surface-elevated3:hover {
+    background-color: #e5e5e5 !important;
+  }
+  
+  .light .hover\:bg-surface:hover {
+    background-color: #e5e5e5 !important;
+  }
+
+  /* Border fixes for light mode */
+  .light .border-gray-600 {
+    border-color: #d1d5db !important; /* gray-300 */
+  }
+  
+  .light .border-gray-700 {
+    border-color: #d1d5db !important; /* gray-300 */
+  }
+
+  /* Progress bar and other backgrounds */
+  .light .bg-gray-700 {
+    background-color: #e5e7eb !important; /* gray-200 */
+  }
+  
+  .light .bg-gray-600 {
+    background-color: #d1d5db !important; /* gray-300 */
+  }
+
+  /* Placeholder text */
+  .light .placeholder-gray-400::placeholder {
+    color: #6b7280 !important; /* gray-500 */
+  }
+
+  /* Input checkbox backgrounds */
+  .light input[type="checkbox"] {
+    background-color: #ffffff !important;
+    border-color: #d1d5db !important;
+  }
+}
+
+@layer components {
+  .card {
+    background-color: #1e1e1e; /* surface-elevated */
+    border-radius: 0.5rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2), 0 1px 10px rgba(0,0,0,0.12), 0 4px 5px rgba(0,0,0,0.14);
+    padding: 1.5rem;
+  }
+
+  .light .card {
+    background-color: #ffffff;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    border: 1px solid #e5e7eb;
+  }
+  
+  .btn {
+    padding: 0.5rem 1rem;
+    border-radius: 0.375rem;
+    font-weight: 500;
+    transition: all 0.2s;
+    outline: none;
+  }
+  
+  .btn:focus {
+    box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.5);
+  }
+  
+  .btn-primary {
+    background-color: #1e88e5;
+    color: white;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+    padding: 0.5rem 1rem;
+    border-radius: 0.375rem;
+  }
+  
+  .btn-primary:hover {
+    background-color: #1976d2;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  }
+  
+  .btn-secondary {
+    background-color: #2a2a2a; /* surface-elevated2 */
+    color: #d1d5db; /* gray-300 */
+    padding: 0.5rem 1rem;
+    border-radius: 0.375rem;
+  }
+  
+  .btn-secondary:hover {
+    background-color: #363636; /* surface-elevated3 */
+  }
+
+  .light .btn-secondary {
+    background-color: #fafafa;
+    color: #1f2937; /* gray-800 */
+    padding: 0.5rem 1rem;
+    border-radius: 0.375rem;
+  }
+
+  .light .btn-secondary:hover {
+    background-color: #f0f0f0;
+  }
+  
+  .input {
+    background-color: #2a2a2a;
+    border: 1px solid #4b5563;
+    border-radius: 0.375rem;
+    padding: 0.5rem 0.75rem;
+    color: white;
+    transition: all 0.2s;
+  }
+  
+  .input::placeholder {
+    color: #9ca3af;
+  }
+  
+  .input:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.5);
+    border-color: transparent;
+  }
+
+  .light .input {
+    background-color: #ffffff;
+    border-color: #d1d5db;
+    color: #111827;
+  }
+
+  .light .input::placeholder {
+    color: #6b7280;
+  }
+  
+  .select {
+    cursor: pointer;
+    background-color: #2a2a2a;
+    color: white;
+  }
+
+  .light .select {
+    background-color: #ffffff;
+    color: #111827;
+  }
+  
+  .label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #d1d5db;
+    margin-bottom: 0.5rem;
+  }
+
+  .light .label {
+    color: #374151;
+  }
+}
+
+/* Custom scrollbar - Dark theme */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1e1e1e;
+}
+
+.light ::-webkit-scrollbar-track {
+  background: #f0f0f0;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #363636;
+  border-radius: 5px;
+}
+
+.light ::-webkit-scrollbar-thumb {
+  background: #c0c0c0;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #4a4a4a;
+}
+
+.light ::-webkit-scrollbar-thumb:hover {
+  background: #a0a0a0;
+}
