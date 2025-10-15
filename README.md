@@ -2,6 +2,16 @@
 
 A powerful desktop application for video and audio encoding with hardware acceleration support, built with Electron and React.
 
+## 📚 Documentation
+
+**[View the complete Wiki documentation](wiki/Home.md)** for comprehensive guides, tutorials, and reference materials.
+
+Quick links:
+- [Quickstart Guide](wiki/Quickstart-Guide.md) - Get started in minutes
+- [User Guide](wiki/User-Guide.md) - Complete feature documentation
+- [Advanced Usage](wiki/Advanced-Usage.md) - Power user features
+- [Troubleshooting](wiki/Troubleshooting.md) - Common issues and solutions
+
 ## Features
 
 ### Core Functionality
@@ -199,13 +209,17 @@ Check the console for error messages. Common issues:
 
 ## Contributing
 
-Contributions are welcome. Please:
+Contributions are welcome! Please read our [Contributing Guide](wiki/Contributing.md) for details on:
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/improvement`)
-3. Commit your changes (`git commit -am 'Add new feature'`)
-4. Push to the branch (`git push origin feature/improvement`)
-5. Open a Pull Request
+- How to report bugs
+- How to suggest features
+- Code style guidelines
+- Pull request process
+- Development setup
+
+See also:
+- [Development Guide](wiki/Development-Guide.md) - Setting up your dev environment
+- [Roadmap](wiki/Roadmap.md) - Planned features and improvements
 
 ## Licence
 
@@ -219,4 +233,9 @@ MIT Licence - see [LICENCE](LICENCE) file for details.
 
 ## Support
 
-For issues, questions, or suggestions, please open an issue on the [GitHub repository](https://github.com/givinghawk/streamline/issues).
+For issues, questions, or suggestions:
+
+- 📖 Check the [Wiki documentation](wiki/Home.md)
+- 🐛 Search or open an [issue](https://github.com/givinghawk/streamline/issues)
+- 💬 Read the [Troubleshooting Guide](wiki/Troubleshooting.md)
+- 🚀 See planned features in the [Roadmap](wiki/Roadmap.md)
