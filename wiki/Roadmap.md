@@ -54,8 +54,6 @@ See [CHANGELOG.md](../CHANGELOG.md) for details on current release.
 - [ ] **Smart caching** - Cache analysis results
 - [ ] **Memory optimization** - Lower memory footprint
 
-## Mid Term (6-12 Months)
-
 ### v1.4.0 - Workflow and Automation
 
 **Workflow Features**
@@ -102,8 +100,6 @@ See [CHANGELOG.md](../CHANGELOG.md) for details on current release.
 - [ ] **Export/import projects** - Share project configurations
 - [ ] **Workspace profiles** - Different layouts for different tasks
 
-## Long Term (12+ Months)
-
 ### v2.0.0 - Next Generation
 
 **AI and Machine Learning**
@@ -114,41 +110,24 @@ See [CHANGELOG.md](../CHANGELOG.md) for details on current release.
 - [ ] **Content-aware encoding** - Adjust settings per scene
 
 **Advanced Features**
-- [ ] **Live streaming** - Stream while encoding
+- [ ] **Recording** - Record internet streams
 - [ ] **Distributed encoding** - Encode across multiple machines
 - [ ] **Cluster support** - Farm rendering
 - [ ] **Real-time preview** - See encoding output in real-time
 - [ ] **VR/360° support** - Encode VR and 360° video
 
 **Platform Expansion**
-- [ ] **Mobile companion app** - Monitor encodes on mobile
 - [ ] **Web interface** - Browser-based control panel
 - [ ] **Server edition** - Dedicated encoding server
 - [ ] **Cloud edition** - Cloud-based encoding service
 - [ ] **Docker container** - Containerized deployment
-
-### v3.0.0 - Professional Suite
-
-**Professional Workflow**
-- [ ] **Frame server** - Act as video source for NLEs
-- [ ] **Adobe integration** - Export from Premiere/After Effects
-- [ ] **DaVinci Resolve plugin** - Direct integration
-- [ ] **Multi-user support** - Shared encoding queues
-- [ ] **Render farm** - Distributed rendering
-
-**Enterprise Features**
-- [ ] **User management** - Multiple users, permissions
-- [ ] **Audit logging** - Track all operations
-- [ ] **License management** - Enterprise licensing
-- [ ] **Priority support** - Dedicated support for enterprises
-- [ ] **SLA monitoring** - Service level tracking
 
 ## Community Requested Features
 
 Features requested by the community, under consideration:
 
 ### High Priority
-- [ ] **Preset import/export improvements** - Bulk operations
+- [x] **Preset import/export improvements** - Bulk operations
 - [ ] **Custom FFmpeg builds** - Support custom FFmpeg versions
 - [ ] **Network share support** - Encode from network locations
 - [ ] **Batch preset application** - Apply preset to all files easily
@@ -162,7 +141,6 @@ Features requested by the community, under consideration:
 - [ ] **Export queue** - Save queue for later
 
 ### Under Consideration
-- [ ] **DVD/Blu-ray ripping** - Integrated disc support
 - [ ] **Format conversion** - More format conversion options
 - [ ] **Audio visualization** - Waveform display
 - [ ] **Timeline editor** - Basic video editing
@@ -185,42 +163,14 @@ Features requested by the community, under consideration:
 - [ ] **Snap distribution** - Snap package
 - [ ] **AppImage improvements** - Better integration
 
-## Performance Targets
-
-### Current Performance
-- 1080p encode: ~2-5 minutes (hardware accelerated)
-- 4K encode: ~10-20 minutes (hardware accelerated)
-- Thumbnail generation: <2 seconds per video
-
-### Target Performance (v2.0)
-- 1080p encode: ~1-2 minutes (optimized pipeline)
-- 4K encode: ~5-10 minutes (multi-GPU support)
-- Thumbnail generation: <1 second per video
-- Startup time: <2 seconds
-- Memory usage: <500 MB idle
-
-## Quality Targets
-
-### Current Quality
-- VMAF >90 with balanced preset
-- Hardware encoding within 5% of software
-- Encode time vs quality trade-off well balanced
-
-### Target Quality (v2.0)
-- VMAF >95 with AI-optimized settings
-- Hardware encoding within 2% of software
-- Automatic quality target achievement
-
 ## Stability and Reliability
 
 ### v1.x Series
-- [ ] 99% uptime (no crashes)
 - [ ] <1% encode failure rate
 - [ ] Full error recovery
 - [ ] Data integrity guarantees
 
 ### v2.x Series
-- [ ] 99.9% uptime
 - [ ] <0.1% encode failure rate
 - [ ] Automatic failure recovery
 - [ ] Distributed encoding resilience
@@ -264,9 +214,9 @@ We value community input! Here's how you can help shape Streamline's future:
 ## Release Schedule
 
 ### Regular Releases
-- **Minor versions** (1.x.0): Every 2-3 months
+- **Minor versions** (1.x.0): As available
 - **Patch versions** (1.0.x): As needed for bugs
-- **Major versions** (x.0.0): Yearly
+- **Major versions** (x.0.0): As available
 
 ### Beta Testing
 - Beta releases 2-4 weeks before stable
@@ -286,7 +236,6 @@ Streamline follows [Semantic Versioning](https://semver.org/):
 - 📢 Watch for releases
 - 📝 Read release notes
 - 💬 Join discussions
-- 🐦 Follow on social media (if available)
 
 ## Notes
 
