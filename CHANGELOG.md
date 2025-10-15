@@ -40,5 +40,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Complete encoding functionality
 - Multi-platform support (Windows, macOS, Linux)
 
-[Unreleased]: https://github.com/yourusername/ffmpegfrontend/compare/v1.0.0...HEAD
-[1.0.0]: https://github.com/yourusername/ffmpegfrontend/releases/tag/v1.0.0
+[Unreleased]: https://github.com/givinghawk/streamline/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/givinghawk/streamline/releases/tag/v1.0.0

@@ -39,8 +39,8 @@ A powerful desktop application for video and audio encoding with hardware accele
 
 1. Clone the repository
 ```bash
-git clone https://github.com/yourusername/ffmpegfrontend.git
-cd ffmpegfrontend
+git clone https://github.com/givinghawk/streamline.git
+cd streamline
 ```
 
 2. Install dependencies
@@ -55,7 +55,7 @@ npm run electron:dev
 
 ### From Release
 
-Download the latest release for your platform from the [Releases](https://github.com/yourusername/ffmpegfrontend/releases) page.
+Download the latest release for your platform from the [Releases](https://github.com/givinghawk/streamline/releases) page.
 
 ## Usage
 
@@ -124,7 +124,7 @@ Access via the settings icon (gear) in the top-right corner.
 ### Project Structure
 
 ```
-ffmpegfrontend/
+streamline/
 ├── src/
 │   ├── components/         # React components
 │   ├── contexts/          # React contexts
@@ -219,4 +219,4 @@ MIT Licence - see [LICENCE](LICENCE) file for details.
 
 ## Support
 
-For issues, questions, or suggestions, please open an issue on the [GitHub repository](https://github.com/yourusername/ffmpegfrontend/issues).
+For issues, questions, or suggestions, please open an issue on the [GitHub repository](https://github.com/givinghawk/streamline/issues).

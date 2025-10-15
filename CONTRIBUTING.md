@@ -53,8 +53,8 @@ Feature suggestions are welcome. Please:
 ### Installation
 
 ```bash
-git clone https://github.com/yourusername/ffmpegfrontend.git
-cd ffmpegfrontend
+git clone https://github.com/givinghawk/streamline.git
+cd streamline
 npm install
 ```
 
