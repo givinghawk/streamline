@@ -9,6 +9,7 @@ import Header from './components/Header';
 import TitleBar from './components/TitleBar';
 import SplashScreen from './components/SplashScreen';
 import BatchQueue, { QueueStatus } from './components/BatchQueue';
+import UpdateNotification from './components/UpdateNotification';
 import { useSettings } from './contexts/SettingsContext';
 import { detectFileType, filterPresetsByFileType, getRecommendedPreset } from './utils/fileTypeDetection';
 import { getThemeClasses } from './utils/themeUtils';
@@ -436,6 +437,7 @@ function App() {
         </div>
       </main>
       </div>
+      <UpdateNotification />
     </div>
   );
 }

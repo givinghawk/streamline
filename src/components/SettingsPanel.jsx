@@ -240,6 +240,33 @@ function SettingsPanel({ onClose }) {
                   </div>
                 </div>
               </div>
+
+              <div>
+                <h3 className="text-lg font-semibold mb-4">Updates</h3>
+                <div className="space-y-4">
+                  <div className="p-4 bg-surface-elevated2 rounded-lg">
+                    <label className="block mb-2">
+                      <div className="font-medium">Update Channel</div>
+                      <div className="text-sm text-gray-400 mb-3">
+                        Choose which releases to receive
+                      </div>
+                    </label>
+                    <select
+                      value={settings.updateChannel || 'stable'}
+                      onChange={(e) => updateSetting('updateChannel', e.target.value)}
+                      className="input w-full"
+                    >
+                      <option value="stable">Stable Releases Only</option>
+                      <option value="beta">Beta Releases (Latest Features)</option>
+                    </select>
+                    <div className="text-xs text-gray-400 mt-2">
+                      {settings.updateChannel === 'beta' 
+                        ? 'You will receive the latest beta builds with new features'
+                        : 'You will only receive tested stable releases'}
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 

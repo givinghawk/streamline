@@ -127,7 +127,8 @@ jobs:
   release:
     needs: [build-windows, build-macos, build-linux]
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: write
     steps:
       - name: Download Windows artifact
         uses: actions/download-artifact@v4
@@ -147,7 +148,29 @@ jobs:
           name: linux-build
           path: release-artifacts
 
-      - name: Create Release
+      - name: Get short SHA
+        id: vars
+        run: echo "sha_short=$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_OUTPUT
+
+      - name: Create Beta Release
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: beta-${{ steps.vars.outputs.sha_short }}
+          name: Beta Build ${{ steps.vars.outputs.sha_short }}
+          body: |
+            Automated beta build from commit ${{ github.sha }}
+            
+            **Branch:** ${{ github.ref_name }}
+            **Commit:** ${{ github.event.head_commit.message }}
+          files: release-artifacts/*
+          draft: false
+          prerelease: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create Official Release
+        if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v1
         with:
           files: release-artifacts/*

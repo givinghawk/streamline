@@ -39,6 +39,9 @@ contextBridge.exposeInMainWorld('electron', {
   // File system utilities - delegate to main process
   fsExistsSync: (p) => ipcRenderer.invoke('fs-exists-sync', p),
   fsMkdirSync: (p, options) => ipcRenderer.invoke('fs-mkdir-sync', p, options),
+  // Updates
+  checkForUpdates: (channel) => ipcRenderer.invoke('check-for-updates', channel),
+  openExternal: (url) => ipcRenderer.invoke('open-external', url),
 });
 
 console.log('Preload script completed - window.electron should be available');

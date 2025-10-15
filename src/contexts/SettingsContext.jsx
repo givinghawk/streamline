@@ -24,6 +24,7 @@ export const SettingsProvider = ({ children }) => {
     notifyOnCompletion: true,
     maxConcurrentJobs: 1,
     batchMode: false, // false = same directory with _optimised suffix (default), true = /optimised subfolder
+    updateChannel: 'stable', // 'stable' or 'beta'
   });
 
   const [customPresets, setCustomPresets] = useState([]);

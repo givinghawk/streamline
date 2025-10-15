@@ -1,7 +1,8 @@
-const { app, BrowserWindow, ipcMain, dialog, Notification } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, Notification, shell } = require('electron');
 const path = require('path');
 const fs = require('fs').promises;
 const fsSync = require('fs');
+const https = require('https');
 
 let mainWindow;
 let appSettings = {};
@@ -287,6 +288,97 @@ ipcMain.handle('fs-mkdir-sync', (event, p, options) => {
     return true;
   } catch (error) {
     console.error('Error creating directory:', error);
+    return false;
+  }
+});
+
+// Update checker
+ipcMain.handle('check-for-updates', async (event, channel = 'stable') => {
+  try {
+    const currentVersion = app.getVersion();
+    const owner = 'givinghawk';
+    const repo = 'streamline';
+    
+    // Determine which API endpoint to use based on channel
+    const apiUrl = channel === 'beta' 
+      ? `https://api.github.com/repos/${owner}/${repo}/releases`
+      : `https://api.github.com/repos/${owner}/${repo}/releases/latest`;
+
+    const data = await new Promise((resolve, reject) => {
+      https.get(apiUrl, {
+        headers: {
+          'User-Agent': 'Streamline-App',
+          'Accept': 'application/vnd.github.v3+json'
+        }
+      }, (res) => {
+        let body = '';
+        res.on('data', chunk => body += chunk);
+        res.on('end', () => {
+          try {
+            resolve(JSON.parse(body));
+          } catch (e) {
+            reject(e);
+          }
+        });
+      }).on('error', reject);
+    });
+
+    let latestRelease;
+    if (channel === 'beta') {
+      // For beta, get the first prerelease or latest release
+      latestRelease = Array.isArray(data) ? data[0] : null;
+    } else {
+      // For stable, get the latest non-prerelease
+      latestRelease = data;
+    }
+
+    if (!latestRelease) {
+      return { available: false };
+    }
+
+    const latestVersion = latestRelease.tag_name.replace(/^v/, '');
+    const isNewer = compareVersions(latestVersion, currentVersion) > 0;
+
+    return {
+      available: isNewer,
+      version: latestRelease.tag_name,
+      currentVersion: `v${currentVersion}`,
+      url: latestRelease.html_url,
+      body: latestRelease.body,
+      isPrerelease: latestRelease.prerelease,
+      publishedAt: latestRelease.published_at,
+    };
+  } catch (error) {
+    console.error('Error checking for updates:', error);
+    return { available: false, error: error.message };
+  }
+});
+
+// Helper function to compare version strings
+function compareVersions(v1, v2) {
+  // Remove 'v' prefix and 'beta-' prefix if present
+  v1 = v1.replace(/^v/, '').replace(/^beta-/, '');
+  v2 = v2.replace(/^v/, '').replace(/^beta-/, '');
+  
+  const parts1 = v1.split('.').map(n => parseInt(n) || 0);
+  const parts2 = v2.split('.').map(n => parseInt(n) || 0);
+  
+  for (let i = 0; i < Math.max(parts1.length, parts2.length); i++) {
+    const p1 = parts1[i] || 0;
+    const p2 = parts2[i] || 0;
+    if (p1 > p2) return 1;
+    if (p1 < p2) return -1;
+  }
+  return 0;
+}
+
+// Open external URLs
+ipcMain.handle('open-external', async (event, url) => {
+  try {
+    await shell.openExternal(url);
+    return true;
+  } catch (error) {
+    console.error('Error opening external URL:', error);
     return false;
   }
 });
