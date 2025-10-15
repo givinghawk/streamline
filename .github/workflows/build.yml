@@ -2,8 +2,15 @@ name: Build and Release
 
 on:
   push:
+    branches:
+      - main
+      - develop
     tags:
       - 'v*.*.*'
+  pull_request:
+    branches:
+      - main
+      - develop
   workflow_dispatch:
 
 jobs:
@@ -41,7 +48,7 @@ jobs:
           path: |
             release/*.exe
             release/*.msi
-          retention-days: 7
+          retention-days: 30
           if-no-files-found: warn
 
   build-macos:
@@ -77,7 +84,7 @@ jobs:
           path: |
             release/*.dmg
             release/*.zip
-          retention-days: 7
+          retention-days: 30
           if-no-files-found: warn
 
   build-linux:
@@ -114,7 +121,7 @@ jobs:
             release/*.AppImage
             release/*.deb
             release/*.rpm
-          retention-days: 7
+          retention-days: 30
           if-no-files-found: warn
 
   release:
