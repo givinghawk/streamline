@@ -71,14 +71,92 @@ function App() {
           );
         }
       });
+
+      // Setup file opened listener for file associations
+      window.electron.onFileOpened(async (filePath) => {
+        console.log('File opened:', filePath);
+        await handleFileAssociation(filePath);
+      });
     }
 
     return () => {
       if (window.electron) {
         window.electron.removeEncodingProgressListener();
+        window.electron.removeFileOpenedListener();
       }
     };
   }, [currentQueueItemId]);
+
+  // Handle file association opening
+  const handleFileAssociation = async (filePath) => {
+    try {
+      if (filePath.endsWith('.slqueue')) {
+        const data = await window.electron.loadQueue(filePath);
+        
+        // Verify files still exist
+        const validatedQueue = [];
+        for (const item of data.queue) {
+          const exists = await window.electron.checkFileExists(item.filePath);
+          if (exists) {
+            validatedQueue.push({
+              ...item,
+              file: {
+                name: item.fileName,
+                path: item.filePath,
+                size: item.fileSize,
+              },
+            });
+          }
+        }
+        
+        setQueue(validatedQueue);
+        setOverwriteFiles(data.settings.overwriteFiles ?? false);
+        setMaxConcurrentJobs(data.settings.maxConcurrentJobs ?? 1);
+        setCurrentMode('encode');
+        
+        if (window.electron.showNotification) {
+          window.electron.showNotification({
+            title: 'Queue Loaded',
+            body: `Loaded ${validatedQueue.length} items from queue`,
+          });
+        }
+      } else if (filePath.endsWith('.slpreset')) {
+        const data = await window.electron.loadPreset(filePath);
+        setSelectedPreset(data.preset);
+        if (data.preset.settings) {
+          setAdvancedSettings(data.preset.settings);
+          setShowAdvanced(true);
+        }
+        setCurrentMode('encode');
+        
+        if (window.electron.showNotification) {
+          window.electron.showNotification({
+            title: 'Preset Loaded',
+            body: `Preset "${data.preset.name}" loaded`,
+          });
+        }
+      } else if (filePath.endsWith('.slanalysis')) {
+        const data = await window.electron.loadAnalysis(filePath);
+        setFileInfo(data.fileInfo);
+        setCurrentMode('analysis');
+        
+        if (window.electron.showNotification) {
+          window.electron.showNotification({
+            title: 'Analysis Loaded',
+            body: `Analysis for "${data.sourceFile.name}" loaded`,
+          });
+        }
+      } else if (filePath.endsWith('.slreport')) {
+        const data = await window.electron.loadReport(filePath);
+        // For now, just show a notification. Could open a report viewer in the future.
+        alert(`Report loaded:\n${data.summary.completedItems} completed, ${data.summary.failedItems} failed\nSpace saved: ${(data.summary.spaceSaved / 1024 / 1024).toFixed(2)} MB`);
+      }
+    } catch (error) {
+      console.error('Failed to open file:', error);
+      alert(`Failed to open file: ${error.message}`);
+    }
+  };
+
 
   // Keyboard shortcuts
   useKeyboardShortcuts({
@@ -536,6 +614,83 @@ function App() {
     }
   };
 
+  const handleExportAnalysis = async () => {
+    if (!files || files.length === 0 || !fileInfo) {
+      alert('Please select and analyze a file first');
+      return;
+    }
+
+    try {
+      const file = files[0];
+      const filePath = await window.electron.saveFileDialog({
+        title: 'Export Analysis',
+        defaultPath: `${file.name}-analysis.slanalysis`,
+        filters: [
+          { name: 'Streamline Analysis', extensions: ['slanalysis'] },
+          { name: 'All Files', extensions: ['*'] }
+        ]
+      });
+
+      if (filePath) {
+        await window.electron.saveAnalysis(filePath, {
+          fileName: file.name,
+          filePath: file.path,
+          fileSize: file.size,
+          fileInfo,
+          bitrateAnalysis: null, // Will be populated if available
+          sceneDetection: null,
+          contentAnalysis: null,
+          recommendations: null,
+          metadata: {
+            analyzedAt: new Date().toISOString(),
+            streamlineVersion: '0.5.0',
+          },
+        });
+        
+        if (window.electron.showNotification) {
+          window.electron.showNotification({
+            title: 'Analysis Exported',
+            body: `Analysis exported to ${filePath}`,
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Failed to export analysis:', error);
+      alert(`Failed to export analysis: ${error.message}`);
+    }
+  };
+
+  const handleImportAnalysis = async () => {
+    try {
+      const filePath = await window.electron.openFileDialog({
+        title: 'Import Analysis',
+        filters: [
+          { name: 'Streamline Analysis', extensions: ['slanalysis'] },
+          { name: 'All Files', extensions: ['*'] }
+        ],
+        properties: ['openFile']
+      });
+
+      if (filePath) {
+        const data = await window.electron.loadAnalysis(filePath);
+        
+        // Apply the loaded analysis
+        setFileInfo(data.fileInfo);
+        
+        if (window.electron.showNotification) {
+          window.electron.showNotification({
+            title: 'Analysis Imported',
+            body: `Analysis for "${data.sourceFile.name}" imported`,
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Failed to import analysis:', error);
+      alert(`Failed to import analysis: ${error.message}`);
+    }
+  };
+
+
 
 
   const getOutputPath = async (inputPath, preset, customSettings = {}) => {
@@ -649,7 +804,12 @@ function App() {
       
       <main className="container mx-auto px-4 py-8">
         {currentMode === 'analysis' ? (
-          <AnalysisPanel files={files} fileInfo={fileInfo} />
+          <AnalysisPanel 
+            files={files} 
+            fileInfo={fileInfo}
+            onExportAnalysis={handleExportAnalysis}
+            onImportAnalysis={handleImportAnalysis}
+          />
         ) : currentMode === 'import' ? (
           /* Import Mode - Just drop zone and basic info */
           <div className="space-y-6">

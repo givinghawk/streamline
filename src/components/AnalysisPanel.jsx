@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useSettings } from '../contexts/SettingsContext';
-import { ChartIcon, ImageIcon, SparklesIcon } from './icons/Icons';
+import { ChartIcon, ImageIcon, SparklesIcon, SaveIcon, UploadIcon } from './icons/Icons';
 
-function AnalysisPanel({ files, fileInfo }) {
+function AnalysisPanel({ files, fileInfo, onExportAnalysis, onImportAnalysis }) {
   const { settings } = useSettings();
   const [activeAnalysis, setActiveAnalysis] = useState('overview');
   const [analyzing, setAnalyzing] = useState(false);
@@ -80,31 +80,68 @@ function AnalysisPanel({ files, fileInfo }) {
     <div className="flex-1 flex flex-col">
       {/* Analysis Type Tabs */}
       <div className={`border-b ${settings.theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
-        <div className="flex space-x-4 px-6 py-3">
-          {analysisTabs.map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeAnalysis === tab.id;
-            return (
+        <div className="flex justify-between items-center px-6 py-3">
+          <div className="flex space-x-4">
+            {analysisTabs.map((tab) => {
+              const Icon = tab.icon;
+              const isActive = activeAnalysis === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveAnalysis(tab.id)}
+                  className={`
+                    flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-all
+                    ${isActive
+                      ? settings.theme === 'dark'
+                        ? 'bg-primary-900/30 text-primary-400'
+                        : 'bg-primary-100 text-primary-700'
+                      : settings.theme === 'dark'
+                        ? 'text-gray-400 hover:text-gray-200 hover:bg-gray-800'
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                    }
+                  `}
+                >
+                  <Icon className="w-4 h-4" />
+                  <span className="text-sm">{tab.name}</span>
+                </button>
+              );
+            })}
+          </div>
+          
+          {/* Export/Import buttons */}
+          <div className="flex items-center space-x-2">
+            {onImportAnalysis && (
               <button
-                key={tab.id}
-                onClick={() => setActiveAnalysis(tab.id)}
-                className={`
-                  flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-all
-                  ${isActive
-                    ? settings.theme === 'dark'
-                      ? 'bg-primary-900/30 text-primary-400'
-                      : 'bg-primary-100 text-primary-700'
-                    : settings.theme === 'dark'
-                      ? 'text-gray-400 hover:text-gray-200 hover:bg-gray-800'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                  }
-                `}
+                onClick={onImportAnalysis}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center space-x-1 ${
+                  settings.theme === 'dark'
+                    ? 'bg-surface-elevated2 hover:bg-surface-elevated3 text-gray-300'
+                    : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                }`}
+                title="Import analysis from .slanalysis file"
               >
-                <Icon className="w-4 h-4" />
-                <span className="text-sm">{tab.name}</span>
+                <UploadIcon className="w-4 h-4" />
+                <span>Import</span>
               </button>
-            );
-          })}
+            )}
+            {onExportAnalysis && (
+              <button
+                onClick={onExportAnalysis}
+                disabled={!fileInfo}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center space-x-1 ${
+                  !fileInfo ? 'opacity-50 cursor-not-allowed' : ''
+                } ${
+                  settings.theme === 'dark'
+                    ? 'bg-surface-elevated2 hover:bg-surface-elevated3 text-gray-300'
+                    : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                }`}
+                title="Export analysis to .slanalysis file"
+              >
+                <SaveIcon className="w-4 h-4" />
+                <span>Export</span>
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
