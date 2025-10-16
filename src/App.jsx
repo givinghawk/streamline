@@ -214,7 +214,7 @@ function App() {
 
         // Determine output path
         const inputPath = item.file.path;
-        const outputPath = await getOutputPath(inputPath);
+        const outputPath = await getOutputPath(inputPath, item.preset, item.customSettings);
 
         // Ensure output directory exists
         if (window.electron && window.electron.pathDirname && window.electron.fsExistsSync) {
@@ -329,19 +329,40 @@ function App() {
     setQueue(prevQueue => prevQueue.filter(item => item.status !== QueueStatus.COMPLETED));
   };
 
-  const getOutputPath = async (inputPath) => {
+  const getOutputPath = async (inputPath, preset, customSettings = {}) => {
+    // Determine the output extension based on preset/custom settings
+    const getOutputExtension = () => {
+      // Check custom settings first
+      if (customSettings?.outputFormat) {
+        return `.${customSettings.outputFormat}`;
+      }
+      
+      // Then check preset settings
+      if (preset?.settings?.outputFormat) {
+        return `.${preset.settings.outputFormat}`;
+      }
+      
+      // Default: use original extension
+      return null;
+    };
+    
     if (!window.electron || !window.electron.pathDirname) {
       // Fallback for browser environment
       const parts = inputPath.split(/[/\\]/);
       const fileName = parts[parts.length - 1];
       const dir = parts.slice(0, -1).join('/');
+      const extMatch = fileName.match(/(\.[^.]+)$/);
+      const originalExt = extMatch ? extMatch[1] : '';
+      const baseName = fileName.replace(/(\.[^.]+)$/, '');
+      
+      const outputExt = getOutputExtension() || originalExt;
       
       if (batchMode) {
         const outputDir = outputDirectory || `${dir}/optimised`;
-        const outputFileName = overwriteFiles ? fileName : fileName.replace(/(\.[^.]+)$/, '_optimised$1');
+        const outputFileName = overwriteFiles ? `${baseName}${outputExt}` : `${baseName}_optimised${outputExt}`;
         return `${outputDir}/${outputFileName}`;
       } else {
-        const outputFileName = overwriteFiles ? fileName : fileName.replace(/(\.[^.]+)$/, '_optimised$1');
+        const outputFileName = overwriteFiles ? `${baseName}${outputExt}` : `${baseName}_optimised${outputExt}`;
         return `${dir}/${outputFileName}`;
       }
     }
@@ -350,12 +371,14 @@ function App() {
     const ext = await window.electron.pathExtname(inputPath);
     const base = await window.electron.pathBasename(inputPath, ext);
     
+    const outputExt = getOutputExtension() || ext;
+    
     if (batchMode) {
       const outputDir = outputDirectory || await window.electron.pathJoin(dir, 'optimised');
-      const outputFileName = overwriteFiles ? `${base}${ext}` : `${base}_optimised${ext}`;
+      const outputFileName = overwriteFiles ? `${base}${outputExt}` : `${base}_optimised${outputExt}`;
       return await window.electron.pathJoin(outputDir, outputFileName);
     } else {
-      const outputFileName = overwriteFiles ? `${base}${ext}` : `${base}_optimised${ext}`;
+      const outputFileName = overwriteFiles ? `${base}${outputExt}` : `${base}_optimised${outputExt}`;
       return await window.electron.pathJoin(dir, outputFileName);
     }
   };
