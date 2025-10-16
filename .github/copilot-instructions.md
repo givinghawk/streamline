@@ -41,7 +41,7 @@ Streamline is a desktop application for video and audio encoding with hardware a
 ```
 src/
 ├── components/       # React UI components
-├── contexts/        # React context providers  
+├── contexts/        # React context providers
 ├── constants/       # Preset definitions and constants
 ├── hooks/           # Custom React hooks
 ├── utils/           # Utility functions
