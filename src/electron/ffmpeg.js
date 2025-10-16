@@ -495,8 +495,15 @@ async function encodeFile(options, progressCallback) {
       }
     });
 
-    ffmpeg.on('close', (code) => {
+    ffmpeg.on('close', async (code) => {
       if (code === 0) {
+        // Verify output file integrity
+        const isValid = await verifyFileIntegrity(outputPath);
+        if (!isValid) {
+          reject(new Error(`Output file verification failed. The file may be corrupted.`));
+          return;
+        }
+        
         resolve({
           success: true,
           outputPath,
@@ -509,6 +516,42 @@ async function encodeFile(options, progressCallback) {
     ffmpeg.on('error', (error) => {
       reject(error);
     });
+  });
+}
+
+/**
+ * Verifies output file integrity using ffprobe
+ */
+async function verifyFileIntegrity(filePath) {
+  return new Promise((resolve) => {
+    const ffprobe = spawn('ffprobe', [
+      '-v', 'error',
+      '-show_format',
+      '-show_streams',
+      filePath
+    ]);
+
+    let hasError = false;
+    
+    ffprobe.stderr.on('data', (data) => {
+      // If ffprobe outputs errors, the file is likely corrupted
+      hasError = true;
+    });
+
+    ffprobe.on('close', (code) => {
+      // If ffprobe exits successfully and has no errors, file is valid
+      resolve(code === 0 && !hasError);
+    });
+
+    ffprobe.on('error', () => {
+      resolve(false);
+    });
+
+    // Timeout after 5 seconds
+    setTimeout(() => {
+      ffprobe.kill();
+      resolve(false);
+    }, 5000);
   });
 }
 
@@ -587,6 +630,12 @@ function applyPreset(args, preset, hardwareAccel) {
 
   const settings = presets[preset.id] || presets['balanced'];
 
+  // Handle image presets using preset.settings if available
+  if (preset.category === 'image' && preset.settings) {
+    applyImageSettings(args, preset.settings);
+    return;
+  }
+
   // Apply video settings
   if (settings.video) {
     let codec = settings.video.codec;
@@ -632,9 +681,41 @@ function applyPreset(args, preset, hardwareAccel) {
 }
 
 /**
+ * Applies image-specific settings to FFmpeg command
+ */
+function applyImageSettings(args, settings) {
+  // Quality setting for lossy formats
+  if (settings.quality) {
+    args.push('-q:v', settings.quality.toString());
+  }
+  
+  // Lossless setting for PNG
+  if (settings.outputFormat === 'png') {
+    args.push('-compression_level', '6'); // Good balance of speed and compression
+  }
+  
+  // WebP specific settings
+  if (settings.outputFormat === 'webp') {
+    if (settings.quality) {
+      args.push('-quality', settings.quality.toString());
+    }
+  }
+}
+
+/**
  * Applies custom settings to FFmpeg command
  */
 function applyCustomSettings(args, settings, hardwareAccel) {
+  // Check if this is an image conversion (based on outputFormat)
+  const imageFormats = ['webp', 'jpg', 'jpeg', 'png', 'gif', 'bmp', 'tiff', 'avif'];
+  const isImage = settings.outputFormat && imageFormats.includes(settings.outputFormat);
+  
+  if (isImage) {
+    // Apply image-specific settings
+    applyImageSettings(args, settings);
+    return;
+  }
+  
   // Video codec
   if (settings.videoCodec) {
     let codec = settings.videoCodec;
