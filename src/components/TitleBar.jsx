@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { CloseIcon } from './icons/Icons';
 import { useSettings } from '../contexts/SettingsContext';
 import { getThemeClasses, themeColors } from '../utils/themeUtils';
+import packageJson from '../../package.json';
 
 function TitleBar() {
   const { settings } = useSettings();
@@ -50,7 +51,7 @@ function TitleBar() {
             </svg>
           </div>
           <span className={`text-sm font-medium ${themeColors.text.secondary(settings.theme)}`}>Streamline</span>
-          <span className={`text-xs font-mono ${themeColors.text.tertiary(settings.theme)}`}>v0.3.0</span>
+          <span className={`text-xs font-mono ${themeColors.text.tertiary(settings.theme)}`}>v{packageJson.version}</span>
         </div>
       </div>
 

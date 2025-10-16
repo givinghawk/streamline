@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { GpuIcon, CheckIcon, SparklesIcon } from './icons/Icons';
+import packageJson from '../../package.json';
 
 function SplashScreen({ onComplete }) {
   const [status, setStatus] = useState('Initializing...');
@@ -219,7 +220,7 @@ function SplashScreen({ onComplete }) {
           </div>
           <h1 className="text-3xl font-bold mb-2">Streamline</h1>
           <p className="text-gray-400">Professional Media Encoding</p>
-          <p className="text-xs text-gray-500 font-mono mt-1">v0.3.0</p>
+          <p className="text-xs text-gray-500 font-mono mt-1">v{packageJson.version}</p>
         </div>
 
         {/* Progress Bar */}

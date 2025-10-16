@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { FilmIcon, GpuIcon, SettingsIcon } from './icons/Icons';
 import SettingsPanel from './SettingsPanel';
 import { useSettings } from '../contexts/SettingsContext';
+import packageJson from '../../package.json';
 
 function Header({ hardwareSupport, onStartEncode, isProcessingBatch, queueLength, onShowShortcuts }) {
   const { settings } = useSettings();
@@ -38,7 +39,7 @@ function Header({ hardwareSupport, onStartEncode, isProcessingBatch, queueLength
                       ? 'text-gray-500 bg-gray-800' 
                       : 'text-gray-600 bg-gray-200'
                   }`}>
-                    v0.3.0
+                    v{packageJson.version}
                   </span>
                 </div>
                 <p className={`text-sm ${settings.theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
