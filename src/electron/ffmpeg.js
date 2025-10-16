@@ -593,8 +593,26 @@ function applyCustomSettings(args, settings, hardwareAccel) {
     args.push('-c:v', codec);
   }
 
+  // Calculate bitrate from target file size if specified
+  let calculatedBitrate = null;
+  if (settings.targetFileSize && settings.targetFileSize > 0 && settings.duration && settings.duration > 0) {
+    const { calculateBitrateFromTargetSize, convertToBytes, parseBitrateString } = require('../utils/bitrateCalculator');
+    
+    // Convert target size to bytes
+    const targetSizeBytes = convertToBytes(settings.targetFileSize, settings.targetFileSizeUnit || 'MB');
+    
+    // Parse audio bitrate if specified
+    const audioBitrateKbps = settings.audioBitrate 
+      ? parseBitrateString(settings.audioBitrate)
+      : (settings.audioCodec ? 192 : 0); // Default 192k if audio codec specified
+    
+    calculatedBitrate = calculateBitrateFromTargetSize(targetSizeBytes, settings.duration, audioBitrateKbps);
+  }
+
   // Video bitrate or CRF
-  if (settings.videoBitrate) {
+  if (calculatedBitrate) {
+    args.push('-b:v', calculatedBitrate);
+  } else if (settings.videoBitrate) {
     args.push('-b:v', settings.videoBitrate);
   } else if (settings.crf) {
     args.push('-crf', settings.crf.toString());

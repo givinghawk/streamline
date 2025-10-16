@@ -42,6 +42,11 @@ contextBridge.exposeInMainWorld('electron', {
   // Updates
   checkForUpdates: (channel) => ipcRenderer.invoke('check-for-updates', channel),
   openExternal: (url) => ipcRenderer.invoke('open-external', url),
+  // Analysis
+  analyzeBitrate: (filePath) => ipcRenderer.invoke('analyze-bitrate', filePath),
+  detectScenes: (filePath, threshold) => ipcRenderer.invoke('detect-scenes', filePath, threshold),
+  analyzeContent: (filePath) => ipcRenderer.invoke('analyze-content', filePath),
+  analyzeQualityMetrics: (originalPath, encodedPath, metric) => ipcRenderer.invoke('analyze-quality-metrics', originalPath, encodedPath, metric),
 });
 
 console.log('Preload script completed - window.electron should be available');

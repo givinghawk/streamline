@@ -6,8 +6,10 @@ import {
   FRAME_RATES,
   ENCODING_PRESETS,
 } from '../constants/presets';
+import { calculateBitrateFromTargetSize, convertToBytes, parseBitrateString, formatBitrate } from '../utils/bitrateCalculator';
+import HDRSettings from './HDRSettings';
 
-function AdvancedSettings({ settings, onSettingsChange, hardwareSupport, selectedPreset, fileType }) {
+function AdvancedSettings({ settings, onSettingsChange, hardwareSupport, selectedPreset, fileType, fileInfo }) {
   const updateSetting = (key, value) => {
     onSettingsChange({
       ...settings,
@@ -166,6 +168,63 @@ function AdvancedSettings({ settings, onSettingsChange, hardwareSupport, selecte
                 className="input w-full"
               />
             </div>
+
+            {/* Target File Size */}
+            <div>
+              <label className="label">
+                Target File Size (optional)
+                <span className="ml-2 text-xs text-gray-400">(Auto-calculates bitrate)</span>
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="number"
+                  value={settings.targetFileSize || ''}
+                  onChange={(e) => updateSetting('targetFileSize', e.target.value ? parseInt(e.target.value) : '')}
+                  placeholder="Size in MB"
+                  min="1"
+                  className="input w-full"
+                />
+                <select
+                  value={settings.targetFileSizeUnit || 'MB'}
+                  onChange={(e) => updateSetting('targetFileSizeUnit', e.target.value)}
+                  className="select"
+                >
+                  <option value="MB">MB</option>
+                  <option value="GB">GB</option>
+                </select>
+              </div>
+              <div className="text-xs text-gray-400 mt-1">
+                Overrides video bitrate setting if specified
+              </div>
+              
+              {/* Calculated bitrate display */}
+              {settings.targetFileSize && fileInfo?.format?.duration && (
+                <div className="mt-3 p-3 bg-primary-500/10 border border-primary-500/30 rounded-lg">
+                  <div className="text-xs text-gray-400 mb-1">Resulting Video Bitrate:</div>
+                  {(() => {
+                    const targetBytes = convertToBytes(settings.targetFileSize, settings.targetFileSizeUnit || 'MB');
+                    const audioBitrateKbps = settings.audioBitrate 
+                      ? parseBitrateString(settings.audioBitrate)
+                      : (settings.audioCodec ? 192 : 0);
+                    const calculatedBitrate = calculateBitrateFromTargetSize(targetBytes, fileInfo.format.duration, audioBitrateKbps);
+                    return (
+                      <div className="text-sm font-semibold text-primary-400">
+                        {calculatedBitrate} ({formatBitrate(parseInt(calculatedBitrate))})
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+            </div>
+
+            <div className="border-t border-gray-700 pt-4"></div>
+
+            {/* HDR Settings */}
+            <HDRSettings 
+              settings={settings}
+              onSettingsChange={updateSetting}
+              fileInfo={null}
+            />
 
             <div className="border-t border-gray-700 pt-4"></div>
           </>

@@ -14,6 +14,7 @@ The wiki is organized into the following sections:
 
 ### Advanced Topics
 - **[Advanced Usage](Advanced-Usage.md)** - Advanced features and techniques for power users
+- **[Keyboard Shortcuts](KeyboardShortcuts.md)** - Full keyboard shortcut reference
 
 ### Feature Documentation
 - **[Batch Processing](Batch-Processing.md)** - Process multiple files efficiently
@@ -22,6 +23,10 @@ The wiki is organized into the following sections:
 - **[Video Comparison](Video-Comparison.md)** - Side-by-side quality comparison
 - **[Preset System](Preset-System.md)** - Built-in presets explained
 - **[Custom Presets](Custom-Presets.md)** - Creating and managing custom presets
+- **[Preset Repositories](PresetRepositories.md)** - Download presets from GitHub repositories
+- **[Advanced Presets](AdvancedPresets.md)** - Conditional logic for intelligent encoding
+- **[HDR Encoding](HDREncoding.md)** - HDR10, HDR10+, Dolby Vision, and HLG support
+- **[Target File Size](Target-File-Size.md)** - Automatically calculate bitrate for target file size
 - **[Thumbnail Generation](Thumbnail-Generation.md)** - Video preview thumbnails
 - **[Themes and Appearance](Themes-and-Appearance.md)** - Customizing the interface
 

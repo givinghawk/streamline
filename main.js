@@ -90,7 +90,7 @@ app.on('window-all-closed', () => {
 });
 
 // IPC Handlers
-let ffmpegHandler, thumbnailHandler;
+let ffmpegHandler, thumbnailHandler, analysisHandler;
 
 try {
   ffmpegHandler = require('./src/electron/ffmpeg');
@@ -106,6 +106,14 @@ try {
 } catch (error) {
   console.error('✗ Failed to load thumbnail handler:', error);
   thumbnailHandler = null;
+}
+
+try {
+  analysisHandler = require('./src/electron/analysis');
+  console.log('✓ Analysis handler loaded successfully');
+} catch (error) {
+  console.error('✗ Failed to load analysis handler:', error);
+  analysisHandler = null;
 }
 
 ipcMain.handle('get-file-info', async (event, filePath) => {
@@ -292,6 +300,35 @@ ipcMain.handle('fs-mkdir-sync', (event, p, options) => {
   }
 });
 
+// Analysis handlers
+ipcMain.handle('analyze-bitrate', async (event, filePath) => {
+  if (!analysisHandler) {
+    throw new Error('Analysis handler not loaded');
+  }
+  return await analysisHandler.analyzeBitrate(filePath);
+});
+
+ipcMain.handle('detect-scenes', async (event, filePath, threshold) => {
+  if (!analysisHandler) {
+    throw new Error('Analysis handler not loaded');
+  }
+  return await analysisHandler.detectScenes(filePath, threshold);
+});
+
+ipcMain.handle('analyze-content', async (event, filePath) => {
+  if (!analysisHandler) {
+    throw new Error('Analysis handler not loaded');
+  }
+  return await analysisHandler.analyzeContent(filePath);
+});
+
+ipcMain.handle('analyze-quality-metrics', async (event, originalPath, encodedPath, metric) => {
+  if (!analysisHandler) {
+    throw new Error('Analysis handler not loaded');
+  }
+  return await analysisHandler.analyzeQualityMetrics(originalPath, encodedPath, metric);
+});
+
 // Update checker
 ipcMain.handle('check-for-updates', async (event, channel = 'stable') => {
   try {
@@ -332,7 +369,7 @@ ipcMain.handle('check-for-updates', async (event, channel = 'stable') => {
       latestRelease = data;
     }
 
-    if (!latestRelease) {
+    if (!latestRelease || !latestRelease.tag_name) {
       return { available: false };
     }
 

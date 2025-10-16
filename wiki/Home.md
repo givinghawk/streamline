@@ -11,15 +11,20 @@ Welcome to the Streamline documentation! Streamline is a powerful desktop applic
 
 ### Advanced Usage
 - **[Advanced Usage](Advanced-Usage.md)** - Advanced features and techniques
+- **[Keyboard Shortcuts](KeyboardShortcuts.md)** - Full keyboard shortcut reference
 - **[Troubleshooting](Troubleshooting.md)** - Common issues and solutions
 
-### Features
+### Feature Documentation
 - **[Batch Processing](Batch-Processing.md)** - Process multiple files efficiently
 - **[Hardware Acceleration](Hardware-Acceleration.md)** - GPU-accelerated encoding
 - **[Quality Analysis](Quality-Analysis.md)** - PSNR, SSIM, and VMAF metrics
 - **[Video Comparison](Video-Comparison.md)** - Side-by-side comparison tool
 - **[Preset System](Preset-System.md)** - Built-in and custom presets
 - **[Custom Presets](Custom-Presets.md)** - Creating and managing custom presets
+- **[Preset Repositories](PresetRepositories.md)** - Download presets from GitHub
+- **[Advanced Presets](AdvancedPresets.md)** - Conditional logic for intelligent encoding
+- **[HDR Encoding](HDREncoding.md)** - HDR10, HDR10+, and Dolby Vision support
+- **[Target File Size](Target-File-Size.md)** - Auto-calculate bitrate for target size
 - **[Thumbnail Generation](Thumbnail-Generation.md)** - Video preview thumbnails
 - **[Themes and Appearance](Themes-and-Appearance.md)** - Customizing the interface
 

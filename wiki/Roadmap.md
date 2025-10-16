@@ -2,7 +2,7 @@
 
 This roadmap outlines planned features and improvements for Streamline. The timeline and priorities may change based on community feedback and development capacity.
 
-## Current Version: 1.1.0
+## Current Version: 0.3.0
 
 See [CHANGELOG.md](../CHANGELOG.md) for details on current release.
 
@@ -18,15 +18,20 @@ See [CHANGELOG.md](../CHANGELOG.md) for details on current release.
 - [ ] **Frame-accurate comparison** - Navigate to specific frames easily
 
 **Analysis Features**
-- [ ] **Bitrate analysis** - Graph bitrate distribution over time
-- [ ] **Scene detection** - Identify scene changes for better encoding
-- [ ] **Content analysis** - Detect complexity for optimal settings
-- [ ] **Grain detection** - Preserve film grain in encoding
+- [x] **Bitrate analysis** - Graph bitrate distribution over time (v0.3.0)
+- [x] **Scene detection** - Identify scene changes for better encoding (v0.3.0)
+- [x] **Content analysis** - Detect complexity for optimal settings (v0.3.0)
+- [x] **Grain detection** - Preserve film grain in encoding (v0.3.0)
+- [x] **Analysis mode UI** - Dedicated analysis tab with sub-categories (v0.3.0)
 - [ ] **Automatic quality validation** - Flag encodes below quality threshold
 
 **UI/UX Improvements**
-- [ ] **Keyboard shortcuts** - Full keyboard navigation
-- [ ] **Preset search** - Search and filter presets
+- [x] **Mode-based interface** - Separate Import/Encode/Analysis tabs (v0.3.0)
+- [x] **Update notifications** - GitHub release checking with beta/stable channels (v0.3.0)
+- [x] **Keyboard shortcuts** - Full keyboard navigation (v0.3.0)
+- [x] **Preset search** - Search and filter presets (v0.3.0)
+- [x] **Community presets** - Download presets from GitHub repositories (v0.3.0)
+- [x] **Advanced presets** - Conditional logic for intelligent encoding (v0.3.0)
 - [ ] **Recent files** - Quick access to recent encodes
 - [ ] **Favorites** - Mark favorite presets
 - [ ] **Undo/Redo** - Undo setting changes
@@ -34,12 +39,13 @@ See [CHANGELOG.md](../CHANGELOG.md) for details on current release.
 ### v1.3.0 - Advanced Encoding
 
 **Encoding Features**
+- [x] **HDR support** - HDR10, HDR10+, Dolby Vision (v0.3.0)
+- [x] **10-bit encoding** - 10-bit color depth support (v0.3.0)
+- [x] **Target file size** - Automatic bitrate calculation for target file size (v0.3.0)
 - [ ] **Segment encoding** - Encode specific time ranges
 - [ ] **Chapter support** - Preserve and add chapters
 - [ ] **Subtitle support** - Embed, extract, and burn-in subtitles
 - [ ] **Multi-audio tracks** - Preserve multiple audio streams
-- [ ] **HDR support** - HDR10, HDR10+, Dolby Vision
-- [ ] **10-bit encoding** - 10-bit color depth support
 
 **Batch Enhancements**
 - [ ] **Queue reordering** - Drag-and-drop queue management

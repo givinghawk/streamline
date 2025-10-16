@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import DropZone from './components/DropZone';
 import PresetSelector from './components/PresetSelector';
 import FileInfo from './components/FileInfo';
+import BasicFileInfo from './components/BasicFileInfo';
 import AdvancedSettings from './components/AdvancedSettings';
 import EncodingProgress from './components/EncodingProgress';
 import OutputSettings from './components/OutputSettings';
@@ -10,9 +11,13 @@ import TitleBar from './components/TitleBar';
 import SplashScreen from './components/SplashScreen';
 import BatchQueue, { QueueStatus } from './components/BatchQueue';
 import UpdateNotification from './components/UpdateNotification';
+import ModeTabs from './components/ModeTabs';
+import AnalysisPanel from './components/AnalysisPanel';
+import KeyboardShortcutsHelp from './components/KeyboardShortcutsHelp';
 import { useSettings } from './contexts/SettingsContext';
 import { detectFileType, filterPresetsByFileType, getRecommendedPreset } from './utils/fileTypeDetection';
 import { getThemeClasses } from './utils/themeUtils';
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 
 function App() {
   const { getAllPresets, settings } = useSettings();
@@ -30,6 +35,8 @@ function App() {
   const [showSplash, setShowSplash] = useState(true);
   const [fileType, setFileType] = useState(null);
   const [overwriteFiles, setOverwriteFiles] = useState(false);
+  const [currentMode, setCurrentMode] = useState('import'); // 'import', 'encode', 'analysis'
+  const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
   
   // Batch queue state
   const [queue, setQueue] = useState([]);
@@ -73,6 +80,38 @@ function App() {
     };
   }, [currentQueueItemId]);
 
+  // Keyboard shortcuts
+  useKeyboardShortcuts({
+    // Mode switching
+    'ctrl+1': () => setCurrentMode('import'),
+    'ctrl+2': () => setCurrentMode('encode'),
+    'ctrl+3': () => setCurrentMode('analysis'),
+    
+    // Actions
+    'ctrl+enter': () => {
+      if (queue.length > 0 && !isProcessingBatch) {
+        handleEncode();
+      }
+    },
+    'ctrl+o': async () => {
+      const result = await window.electron.selectFiles();
+      if (result && result.length > 0) {
+        handleFilesAdded(result);
+      }
+    },
+    'ctrl+shift+delete': () => {
+      if (queue.length > 0 && !isProcessingBatch) {
+        if (confirm('Clear all items from the queue?')) {
+          setQueue([]);
+        }
+      }
+    },
+    
+    // Help
+    'ctrl+/': () => setShowShortcutsHelp(true),
+    'escape': () => setShowShortcutsHelp(false),
+  }, !showSplash); // Only enable after splash screen
+
   const handleSplashComplete = (support) => {
     setHardwareSupport(support);
     setShowSplash(false);
@@ -80,10 +119,20 @@ function App() {
 
   const handleFilesAdded = async (newFiles) => {
     // Add files to batch queue instead of replacing
-    const newQueueItems = newFiles.map((file, index) => {
+    const newQueueItems = await Promise.all(newFiles.map(async (file, index) => {
       const detectedType = detectFileType(file);
       const allPresets = getAllPresets();
       const recommended = getRecommendedPreset(detectedType, allPresets, file);
+      
+      // Get file info for duration calculation
+      let fileInfo = null;
+      if (file.path && window.electron?.getFileInfo) {
+        try {
+          fileInfo = await window.electron.getFileInfo(file.path);
+        } catch (error) {
+          console.error('Failed to get file info:', error);
+        }
+      }
       
       return {
         id: Date.now() + index,
@@ -91,6 +140,7 @@ function App() {
         fileType: detectedType,
         preset: selectedPreset || recommended,
         customSettings: showAdvanced ? advancedSettings : {},
+        fileInfo,
         status: QueueStatus.PENDING,
         progress: null,
         originalSize: file.size,
@@ -98,7 +148,7 @@ function App() {
         error: null,
         qualityMetrics: null,
       };
-    });
+    }));
     
     setQueue(prevQueue => [...prevQueue, ...newQueueItems]);
     
@@ -187,7 +237,10 @@ function App() {
           inputPath,
           outputPath,
           preset: item.preset,
-          customSettings: item.customSettings,
+          customSettings: {
+            ...item.customSettings,
+            duration: item.fileInfo?.format?.duration || null,
+          },
           hardwareAccel: hwAccel,
         });
 
@@ -352,20 +405,51 @@ function App() {
       <div className={themeClasses.container}>
         <TitleBar />
         <div className="pt-8">
-          <Header hardwareSupport={hardwareSupport} />
+          <Header 
+            hardwareSupport={hardwareSupport}
+            onStartEncode={handleEncode}
+            isProcessingBatch={isProcessingBatch}
+            queueLength={queue.length}
+            onShowShortcuts={() => setShowShortcutsHelp(true)}
+          />
+          <ModeTabs currentMode={currentMode} onModeChange={setCurrentMode} />
         </div>
       
       <main className="container mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left Column - File Input */}
-          <div className="lg:col-span-2 space-y-6">
+        {currentMode === 'analysis' ? (
+          <AnalysisPanel files={files} fileInfo={fileInfo} />
+        ) : currentMode === 'import' ? (
+          /* Import Mode - Just drop zone and basic info */
+          <div className="space-y-6">
             <DropZone onFilesAdded={handleFilesAdded} files={files} fileType={fileType} />
             
             {fileInfo && (
-              <FileInfo 
-                info={fileInfo} 
+              <BasicFileInfo 
+                fileInfo={fileInfo} 
                 isAnalyzing={isAnalyzing}
-                filePath={files.length > 0 ? files[0].path : null}
+              />
+            )}
+
+            {/* Batch Queue */}
+            {queue.length > 0 && (
+              <BatchQueue 
+                queue={queue}
+                onRemoveItem={handleRemoveQueueItem}
+                onClearCompleted={handleClearCompleted}
+                onStartBatch={handleEncode}
+                isProcessing={isProcessingBatch}
+              />
+            )}
+          </div>
+        ) : (
+          /* Encode Mode - Full encoding interface */
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Left Column - Selected Files & Queue */}
+          <div className="lg:col-span-2 space-y-6">
+            {fileInfo && (
+              <BasicFileInfo 
+                fileInfo={fileInfo} 
+                isAnalyzing={isAnalyzing}
               />
             )}
 
@@ -382,6 +466,31 @@ function App() {
                 onStartBatch={handleEncode}
                 isProcessing={isProcessingBatch}
               />
+            )}
+            
+            {/* Show message if no files */}
+            {queue.length === 0 && (
+              <div className={`p-12 rounded-lg border-2 border-dashed text-center ${
+                settings.theme === 'dark' 
+                  ? 'border-gray-700 bg-surface-elevated' 
+                  : 'border-gray-300 bg-gray-50'
+              }`}>
+                <svg className={`w-16 h-16 mx-auto mb-4 ${
+                  settings.theme === 'dark' ? 'text-gray-600' : 'text-gray-400'
+                }`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                </svg>
+                <h3 className={`text-lg font-semibold mb-2 ${
+                  settings.theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                }`}>
+                  No Files Selected
+                </h3>
+                <p className={`${
+                  settings.theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                }`}>
+                  Switch to Import tab to add files to the queue
+                </p>
+              </div>
             )}
           </div>
 
@@ -419,6 +528,7 @@ function App() {
                 hardwareSupport={hardwareSupport}
                 selectedPreset={selectedPreset}
                 fileType={fileType}
+                fileInfo={fileInfo}
               />
             )}
 
@@ -435,9 +545,15 @@ function App() {
             </button>
           </div>
         </div>
+        )}
       </main>
       </div>
       <UpdateNotification />
+      <KeyboardShortcutsHelp 
+        isOpen={showShortcutsHelp} 
+        onClose={() => setShowShortcutsHelp(false)}
+        theme={settings.theme}
+      />
     </div>
   );
 }
