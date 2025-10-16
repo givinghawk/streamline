@@ -4,6 +4,88 @@ const fs = require('fs').promises;
 const os = require('os');
 
 /**
+ * Checks if FFmpeg and FFprobe are available in the system PATH
+ */
+async function checkFFmpegPresence() {
+  return new Promise((resolve) => {
+    const checks = {
+      ffmpeg: false,
+      ffprobe: false,
+      ffmpegVersion: null,
+      ffprobeVersion: null,
+    };
+
+    // Check FFmpeg
+    const ffmpegCheck = spawn('ffmpeg', ['-version']);
+    let ffmpegOutput = '';
+
+    ffmpegCheck.stdout.on('data', (data) => {
+      ffmpegOutput += data.toString();
+    });
+
+    ffmpegCheck.on('close', (code) => {
+      if (code === 0) {
+        checks.ffmpeg = true;
+        const versionMatch = ffmpegOutput.match(/ffmpeg version ([^\s]+)/);
+        if (versionMatch) {
+          checks.ffmpegVersion = versionMatch[1];
+        }
+      }
+
+      // Check FFprobe
+      const ffprobeCheck = spawn('ffprobe', ['-version']);
+      let ffprobeOutput = '';
+
+      ffprobeCheck.stdout.on('data', (data) => {
+        ffprobeOutput += data.toString();
+      });
+
+      ffprobeCheck.on('close', (code) => {
+        if (code === 0) {
+          checks.ffprobe = true;
+          const versionMatch = ffprobeOutput.match(/ffprobe version ([^\s]+)/);
+          if (versionMatch) {
+            checks.ffprobeVersion = versionMatch[1];
+          }
+        }
+
+        resolve(checks);
+      });
+
+      ffprobeCheck.on('error', () => {
+        resolve(checks);
+      });
+    });
+
+    ffmpegCheck.on('error', () => {
+      // FFmpeg not found, still check FFprobe
+      const ffprobeCheck = spawn('ffprobe', ['-version']);
+      let ffprobeOutput = '';
+
+      ffprobeCheck.stdout.on('data', (data) => {
+        ffprobeOutput += data.toString();
+      });
+
+      ffprobeCheck.on('close', (code) => {
+        if (code === 0) {
+          checks.ffprobe = true;
+          const versionMatch = ffprobeOutput.match(/ffprobe version ([^\s]+)/);
+          if (versionMatch) {
+            checks.ffprobeVersion = versionMatch[1];
+          }
+        }
+
+        resolve(checks);
+      });
+
+      ffprobeCheck.on('error', () => {
+        resolve(checks);
+      });
+    });
+  });
+}
+
+/**
  * Detects available hardware acceleration encoders
  * This checks both if FFmpeg has the encoder AND if it can actually initialize
  */
@@ -762,6 +844,7 @@ async function analyzeQuality(originalPath, encodedPath) {
 }
 
 module.exports = {
+  checkFFmpegPresence,
   checkHardwareSupport,
   getFileInfo,
   encodeFile,
