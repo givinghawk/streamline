@@ -48,6 +48,23 @@ contextBridge.exposeInMainWorld('electron', {
   detectScenes: (filePath, threshold) => ipcRenderer.invoke('detect-scenes', filePath, threshold),
   analyzeContent: (filePath) => ipcRenderer.invoke('analyze-content', filePath),
   analyzeQualityMetrics: (originalPath, encodedPath, metric) => ipcRenderer.invoke('analyze-quality-metrics', originalPath, encodedPath, metric),
+  // File formats (custom extensions)
+  saveQueue: (filePath, queueData) => ipcRenderer.invoke('save-queue', filePath, queueData),
+  loadQueue: (filePath) => ipcRenderer.invoke('load-queue', filePath),
+  savePreset: (filePath, presetData) => ipcRenderer.invoke('save-preset', filePath, presetData),
+  loadPreset: (filePath) => ipcRenderer.invoke('load-preset', filePath),
+  saveAnalysis: (filePath, analysisData) => ipcRenderer.invoke('save-analysis', filePath, analysisData),
+  loadAnalysis: (filePath) => ipcRenderer.invoke('load-analysis', filePath),
+  saveReport: (filePath, reportData) => ipcRenderer.invoke('save-report', filePath, reportData),
+  loadReport: (filePath) => ipcRenderer.invoke('load-report', filePath),
+  saveFileDialog: (options) => ipcRenderer.invoke('save-file-dialog', options),
+  openFileDialog: (options) => ipcRenderer.invoke('open-file-dialog', options),
+  onFileOpened: (callback) => {
+    ipcRenderer.on('file-opened', (event, filePath) => callback(filePath));
+  },
+  removeFileOpenedListener: () => {
+    ipcRenderer.removeAllListeners('file-opened');
+  },
 });
 
 console.log('Preload script completed - window.electron should be available');

@@ -8,6 +8,7 @@ import {
   SettingsIcon,
   UploadIcon,
   DownloadIcon,
+  SaveIcon,
 } from './icons/Icons';
 import VideoComparison from './VideoComparison';
 
@@ -19,7 +20,7 @@ const QueueStatus = {
   CANCELLED: 'cancelled',
 };
 
-function BatchQueue({ queue, onRemoveItem, onClearCompleted, onStartBatch, isProcessing }) {
+function BatchQueue({ queue, onRemoveItem, onClearCompleted, onStartBatch, isProcessing, onSaveQueue, onLoadQueue, onExportReport }) {
   const [expandedItem, setExpandedItem] = useState(null);
   const [comparisonItem, setComparisonItem] = useState(null);
 
@@ -124,6 +125,39 @@ function BatchQueue({ queue, onRemoveItem, onClearCompleted, onStartBatch, isPro
         </div>
 
         <div className="flex items-center space-x-2">
+          {queue.length > 0 && (
+            <>
+              <button
+                onClick={onSaveQueue}
+                className="btn-secondary text-sm flex items-center space-x-1"
+                disabled={isProcessing}
+                title="Save queue to .slqueue file"
+              >
+                <SaveIcon className="w-4 h-4" />
+                <span>Save Queue</span>
+              </button>
+              {completedCount > 0 && (
+                <button
+                  onClick={onExportReport}
+                  className="btn-secondary text-sm flex items-center space-x-1"
+                  disabled={isProcessing}
+                  title="Export report to .slreport file"
+                >
+                  <DownloadIcon className="w-4 h-4" />
+                  <span>Export Report</span>
+                </button>
+              )}
+            </>
+          )}
+          <button
+            onClick={onLoadQueue}
+            className="btn-secondary text-sm flex items-center space-x-1"
+            disabled={isProcessing}
+            title="Load queue from .slqueue file"
+          >
+            <UploadIcon className="w-4 h-4" />
+            <span>Load Queue</span>
+          </button>
           {completedCount > 0 && (
             <button
               onClick={onClearCompleted}
