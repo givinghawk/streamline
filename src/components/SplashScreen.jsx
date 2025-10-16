@@ -73,10 +73,15 @@ function SplashScreen({ onComplete }) {
       }
 
       setHardwareInfo(detectedHardware);
+      setProgress(80);
+      await delay(300);
+
+      // Step 4: Checking for updates
+      setStatus('Checking for updates...');
       setProgress(90);
       await delay(400);
 
-      // Step 4: Ready
+      // Step 5: Ready
       setStatus(detectedHardware.length > 0 ? 'Hardware acceleration ready!' : 'Ready (Software encoding)');
       setProgress(100);
       await delay(800);
@@ -103,6 +108,7 @@ function SplashScreen({ onComplete }) {
           </div>
           <h1 className="text-3xl font-bold mb-2">Streamline</h1>
           <p className="text-gray-400">Professional Media Encoding</p>
+          <p className="text-xs text-gray-500 font-mono mt-1">v0.3.0</p>
         </div>
 
         {/* Progress Bar */}

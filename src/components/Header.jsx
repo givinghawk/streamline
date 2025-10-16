@@ -27,7 +27,10 @@ function Header({ hardwareSupport }) {
                 <FilmIcon className="w-8 h-8 text-white" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold">Streamline</h1>
+                <div className="flex items-center space-x-2">
+                  <h1 className="text-2xl font-bold">Streamline</h1>
+                  <span className="text-xs text-gray-500 font-mono bg-gray-800 px-2 py-1 rounded">v0.3.0</span>
+                </div>
                 <p className="text-sm text-gray-400">Professional Media Encoding Suite</p>
               </div>
             </div>

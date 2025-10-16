@@ -50,6 +50,7 @@ function TitleBar() {
             </svg>
           </div>
           <span className={`text-sm font-medium ${themeColors.text.secondary(settings.theme)}`}>Streamline</span>
+          <span className={`text-xs font-mono ${themeColors.text.tertiary(settings.theme)}`}>v0.3.0</span>
         </div>
       </div>
 
