@@ -21,6 +21,11 @@ Quick links:
 - **Video Comparison** - Side-by-side playback of original and encoded videos
 - **Preset System** - Built-in presets and custom preset creation
 - **Real-time Progress** - Live encoding progress with speed and bitrate information
+- **Custom File Formats** - Save and share queues, presets, analysis, and reports
+  - `.slqueue` - Save and load batch processing queues
+  - `.slpreset` - Export and import custom encoding presets
+  - `.slanalysis` - Share video analysis data
+  - `.slreport` - Generate encoding reports with statistics
 
 ### Encoding Capabilities
 - **Video Codecs** - H.264, H.265/HEVC, VP9, AV1
@@ -35,6 +40,7 @@ Quick links:
 - **Thumbnail Generation** - Grid-based video previews
 - **Custom Output Paths** - Configure output directories and file naming
 - **Notification System** - Desktop notifications on completion
+- **File Associations** - Double-click to open Streamline files (Windows, macOS, Linux)
 
 ## Prerequisites
 

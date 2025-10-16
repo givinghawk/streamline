@@ -20,9 +20,9 @@ async function saveQueue(filePath, queueData) {
       createdAt: new Date().toISOString(),
       queue: queueData.queue.map(item => ({
         id: item.id,
-        fileName: item.file.name,
-        filePath: item.file.path,
-        fileSize: item.file.size,
+        fileName: item.file?.name || item.fileName,
+        filePath: item.file?.path || item.filePath,
+        fileSize: item.file?.size || item.fileSize,
         fileType: item.fileType,
         preset: item.preset,
         advancedSettings: item.advancedSettings,
