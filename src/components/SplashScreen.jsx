@@ -189,13 +189,15 @@ function SplashScreen({ onComplete }) {
           {/* Retry Button */}
           <button
             onClick={() => {
+              // Reset state and re-run the full initialization process
               setFfmpegError(null);
               setProgress(0);
+              setStatus('Initializing...');
               detectHardware();
             }}
             className="w-full bg-primary-600 hover:bg-primary-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
           >
-            Retry After Installing FFmpeg
+            Check Again
           </button>
         </div>
       </div>

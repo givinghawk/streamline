@@ -27,7 +27,13 @@ function checkToolPresence(toolName, versionPattern) {
       }
     });
 
-    toolCheck.on('error', () => {
+    toolCheck.on('error', (error) => {
+      // Log error for debugging, especially ENOENT (tool not found in PATH)
+      if (error.code === 'ENOENT') {
+        console.log(`${toolName} not found in PATH`);
+      } else {
+        console.error(`Error checking ${toolName}:`, error);
+      }
       resolve({ available: false, version: null });
     });
   });
