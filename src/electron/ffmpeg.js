@@ -4,85 +4,51 @@ const fs = require('fs').promises;
 const os = require('os');
 
 /**
+ * Checks if a specific FFmpeg tool is available in the system PATH
+ */
+function checkToolPresence(toolName, versionPattern) {
+  return new Promise((resolve) => {
+    const toolCheck = spawn(toolName, ['-version']);
+    let output = '';
+
+    toolCheck.stdout.on('data', (data) => {
+      output += data.toString();
+    });
+
+    toolCheck.on('close', (code) => {
+      if (code === 0) {
+        const versionMatch = output.match(versionPattern);
+        resolve({
+          available: true,
+          version: versionMatch ? versionMatch[1] : null,
+        });
+      } else {
+        resolve({ available: false, version: null });
+      }
+    });
+
+    toolCheck.on('error', () => {
+      resolve({ available: false, version: null });
+    });
+  });
+}
+
+/**
  * Checks if FFmpeg and FFprobe are available in the system PATH
  */
 async function checkFFmpegPresence() {
-  return new Promise((resolve) => {
-    const checks = {
-      ffmpeg: false,
-      ffprobe: false,
-      ffmpegVersion: null,
-      ffprobeVersion: null,
-    };
+  // Run both checks concurrently for better performance
+  const [ffmpegResult, ffprobeResult] = await Promise.all([
+    checkToolPresence('ffmpeg', /ffmpeg version ([^\s]+)/),
+    checkToolPresence('ffprobe', /ffprobe version ([^\s]+)/),
+  ]);
 
-    // Check FFmpeg
-    const ffmpegCheck = spawn('ffmpeg', ['-version']);
-    let ffmpegOutput = '';
-
-    ffmpegCheck.stdout.on('data', (data) => {
-      ffmpegOutput += data.toString();
-    });
-
-    ffmpegCheck.on('close', (code) => {
-      if (code === 0) {
-        checks.ffmpeg = true;
-        const versionMatch = ffmpegOutput.match(/ffmpeg version ([^\s]+)/);
-        if (versionMatch) {
-          checks.ffmpegVersion = versionMatch[1];
-        }
-      }
-
-      // Check FFprobe
-      const ffprobeCheck = spawn('ffprobe', ['-version']);
-      let ffprobeOutput = '';
-
-      ffprobeCheck.stdout.on('data', (data) => {
-        ffprobeOutput += data.toString();
-      });
-
-      ffprobeCheck.on('close', (code) => {
-        if (code === 0) {
-          checks.ffprobe = true;
-          const versionMatch = ffprobeOutput.match(/ffprobe version ([^\s]+)/);
-          if (versionMatch) {
-            checks.ffprobeVersion = versionMatch[1];
-          }
-        }
-
-        resolve(checks);
-      });
-
-      ffprobeCheck.on('error', () => {
-        resolve(checks);
-      });
-    });
-
-    ffmpegCheck.on('error', () => {
-      // FFmpeg not found, still check FFprobe
-      const ffprobeCheck = spawn('ffprobe', ['-version']);
-      let ffprobeOutput = '';
-
-      ffprobeCheck.stdout.on('data', (data) => {
-        ffprobeOutput += data.toString();
-      });
-
-      ffprobeCheck.on('close', (code) => {
-        if (code === 0) {
-          checks.ffprobe = true;
-          const versionMatch = ffprobeOutput.match(/ffprobe version ([^\s]+)/);
-          if (versionMatch) {
-            checks.ffprobeVersion = versionMatch[1];
-          }
-        }
-
-        resolve(checks);
-      });
-
-      ffprobeCheck.on('error', () => {
-        resolve(checks);
-      });
-    });
-  });
+  return {
+    ffmpeg: ffmpegResult.available,
+    ffprobe: ffprobeResult.available,
+    ffmpegVersion: ffmpegResult.version,
+    ffprobeVersion: ffprobeResult.version,
+  };
 }
 
 /**
