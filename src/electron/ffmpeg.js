@@ -4,6 +4,60 @@ const fs = require('fs').promises;
 const os = require('os');
 
 /**
+ * Checks if a specific FFmpeg tool is available in the system PATH
+ */
+function checkToolPresence(toolName, versionPattern) {
+  return new Promise((resolve) => {
+    const toolCheck = spawn(toolName, ['-version']);
+    let output = '';
+
+    toolCheck.stdout.on('data', (data) => {
+      output += data.toString();
+    });
+
+    toolCheck.on('close', (code) => {
+      if (code === 0) {
+        const versionMatch = output.match(versionPattern);
+        resolve({
+          available: true,
+          version: versionMatch ? versionMatch[1] : null,
+        });
+      } else {
+        resolve({ available: false, version: null });
+      }
+    });
+
+    toolCheck.on('error', (error) => {
+      // Log error for debugging, especially ENOENT (tool not found in PATH)
+      if (error.code === 'ENOENT') {
+        console.log(`${toolName} not found in PATH`);
+      } else {
+        console.error(`Error checking ${toolName}:`, error);
+      }
+      resolve({ available: false, version: null });
+    });
+  });
+}
+
+/**
+ * Checks if FFmpeg and FFprobe are available in the system PATH
+ */
+async function checkFFmpegPresence() {
+  // Run both checks concurrently for better performance
+  const [ffmpegResult, ffprobeResult] = await Promise.all([
+    checkToolPresence('ffmpeg', /ffmpeg version ([^\s]+)/),
+    checkToolPresence('ffprobe', /ffprobe version ([^\s]+)/),
+  ]);
+
+  return {
+    ffmpeg: ffmpegResult.available,
+    ffprobe: ffprobeResult.available,
+    ffmpegVersion: ffmpegResult.version,
+    ffprobeVersion: ffprobeResult.version,
+  };
+}
+
+/**
  * Detects available hardware acceleration encoders
  * This checks both if FFmpeg has the encoder AND if it can actually initialize
  */
@@ -780,6 +834,7 @@ async function analyzeQuality(originalPath, encodedPath) {
 }
 
 module.exports = {
+  checkFFmpegPresence,
   checkHardwareSupport,
   getFileInfo,
   encodeFile,

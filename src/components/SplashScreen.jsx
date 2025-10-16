@@ -5,6 +5,7 @@ function SplashScreen({ onComplete }) {
   const [status, setStatus] = useState('Initializing...');
   const [progress, setProgress] = useState(0);
   const [hardwareInfo, setHardwareInfo] = useState([]);
+  const [ffmpegError, setFfmpegError] = useState(null);
 
   useEffect(() => {
     detectHardware();
@@ -16,9 +17,41 @@ function SplashScreen({ onComplete }) {
     setProgress(20);
     await delay(300);
 
-    // Step 2: Checking FFmpeg
+    // Step 2: Checking FFmpeg presence
     setStatus('Checking FFmpeg installation...');
     setProgress(40);
+    
+    try {
+      const ffmpegPresence = await window.electron.checkFFmpegPresence();
+      
+      if (!ffmpegPresence.ffmpeg || !ffmpegPresence.ffprobe) {
+        const missing = [];
+        if (!ffmpegPresence.ffmpeg) missing.push('FFmpeg');
+        if (!ffmpegPresence.ffprobe) missing.push('FFprobe');
+        
+        setFfmpegError({
+          missing,
+          message: `${missing.join(' and ')} not found in system PATH`,
+        });
+        setStatus(`Error: ${missing.join(' and ')} not found`);
+        setProgress(100);
+        return;
+      }
+
+      console.log('FFmpeg detected:', ffmpegPresence.ffmpegVersion);
+      console.log('FFprobe detected:', ffmpegPresence.ffprobeVersion);
+      
+    } catch (error) {
+      console.error('Failed to check FFmpeg presence:', error);
+      setFfmpegError({
+        missing: ['FFmpeg'],
+        message: 'Failed to verify FFmpeg installation',
+      });
+      setStatus('Error: Cannot verify FFmpeg');
+      setProgress(100);
+      return;
+    }
+
     await delay(400);
 
     // Step 3: Scanning Hardware
@@ -98,6 +131,84 @@ function SplashScreen({ onComplete }) {
 
   const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
+  // If FFmpeg is not found, show error message with installation instructions
+  if (ffmpegError) {
+    return (
+      <div className="fixed inset-0 bg-surface z-50 flex items-center justify-center">
+        <div className="max-w-2xl w-full px-8">
+          {/* Logo/Icon with error state */}
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center justify-center w-20 h-20 bg-red-600 rounded-2xl shadow-material-lg mb-4">
+              <AlertIcon className="w-12 h-12 text-white" />
+            </div>
+            <h1 className="text-3xl font-bold mb-2 text-red-500">FFmpeg Not Found</h1>
+            <p className="text-gray-400">Required components are missing</p>
+          </div>
+
+          {/* Error Details */}
+          <div className="bg-surface-elevated rounded-lg p-6 mb-6">
+            <h2 className="text-xl font-semibold mb-4 flex items-center">
+              <AlertIcon className="w-6 h-6 text-red-500 mr-2" />
+              Missing Components
+            </h2>
+            <ul className="space-y-2 mb-4">
+              {ffmpegError.missing.map((component, index) => (
+                <li key={index} className="flex items-center text-gray-300">
+                  <span className="w-2 h-2 bg-red-500 rounded-full mr-3"></span>
+                  {component}
+                </li>
+              ))}
+            </ul>
+            <p className="text-gray-400 text-sm">
+              {ffmpegError.message}
+            </p>
+          </div>
+
+          {/* Installation Instructions */}
+          <div className="bg-surface-elevated rounded-lg p-6 mb-6">
+            <h2 className="text-xl font-semibold mb-4">Installation Instructions</h2>
+            <div className="space-y-4">
+              <div>
+                <h3 className="font-semibold text-primary-400 mb-2">Windows</h3>
+                <ol className="list-decimal list-inside space-y-1 text-sm text-gray-300">
+                  <li>Download FFmpeg from <a href="https://ffmpeg.org/download.html" className="text-primary-400 hover:text-primary-300 underline" onClick={(e) => { e.preventDefault(); window.electron?.openExternal('https://ffmpeg.org/download.html'); }}>ffmpeg.org</a></li>
+                  <li>Extract the archive and add the bin folder to your system PATH</li>
+                  <li>Restart Streamline</li>
+                </ol>
+              </div>
+              <div>
+                <h3 className="font-semibold text-primary-400 mb-2">macOS</h3>
+                <p className="text-sm text-gray-300 mb-1">Using Homebrew:</p>
+                <code className="block bg-surface-elevated2 p-2 rounded text-xs text-green-400">brew install ffmpeg</code>
+              </div>
+              <div>
+                <h3 className="font-semibold text-primary-400 mb-2">Linux</h3>
+                <p className="text-sm text-gray-300 mb-1">Using apt (Ubuntu/Debian):</p>
+                <code className="block bg-surface-elevated2 p-2 rounded text-xs text-green-400 mb-2">sudo apt install ffmpeg</code>
+                <p className="text-sm text-gray-300 mb-1">Using dnf (Fedora):</p>
+                <code className="block bg-surface-elevated2 p-2 rounded text-xs text-green-400">sudo dnf install ffmpeg</code>
+              </div>
+            </div>
+          </div>
+
+          {/* Retry Button */}
+          <button
+            onClick={() => {
+              // Reset state and re-run the full initialization process
+              setFfmpegError(null);
+              setProgress(0);
+              setStatus('Initializing...');
+              detectHardware();
+            }}
+            className="w-full bg-primary-600 hover:bg-primary-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
+          >
+            Check Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="fixed inset-0 bg-surface z-50 flex items-center justify-center">
       <div className="max-w-md w-full px-8">
@@ -163,6 +274,12 @@ function SplashScreen({ onComplete }) {
 const FilmIcon = ({ className }) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
+  </svg>
+);
+
+const AlertIcon = ({ className }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
   </svg>
 );
 

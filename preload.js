@@ -4,6 +4,7 @@ console.log('Preload script starting...');
 
 contextBridge.exposeInMainWorld('electron', {
   getFileInfo: (filePath) => ipcRenderer.invoke('get-file-info', filePath),
+  checkFFmpegPresence: () => ipcRenderer.invoke('check-ffmpeg-presence'),
   checkHardwareSupport: () => ipcRenderer.invoke('check-hardware-support'),
   encodeFile: (options) => ipcRenderer.invoke('encode-file', options),
   selectOutputDirectory: () => ipcRenderer.invoke('select-output-directory'),

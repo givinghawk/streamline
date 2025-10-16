@@ -123,6 +123,19 @@ ipcMain.handle('get-file-info', async (event, filePath) => {
   return await ffmpegHandler.getFileInfo(filePath);
 });
 
+ipcMain.handle('check-ffmpeg-presence', async () => {
+  if (!ffmpegHandler) {
+    console.error('FFmpeg handler not loaded, returning false');
+    return {
+      ffmpeg: false,
+      ffprobe: false,
+      ffmpegVersion: null,
+      ffprobeVersion: null,
+    };
+  }
+  return await ffmpegHandler.checkFFmpegPresence();
+});
+
 ipcMain.handle('check-hardware-support', async () => {
   if (!ffmpegHandler) {
     console.error('FFmpeg handler not loaded, returning empty hardware support');
