@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { GpuIcon, CheckIcon, SparklesIcon } from './icons/Icons';
 import TitleBar from './TitleBar';
 import packageJson from '../../package.json';
@@ -8,7 +8,7 @@ function SplashScreen({ onComplete }) {
   const [progress, setProgress] = useState(0);
   const [hardwareInfo, setHardwareInfo] = useState([]);
   const [ffmpegError, setFfmpegError] = useState(null);
-  const [platform, setPlatform] = useState('unknown');
+  const [platform, setPlatform] = useState(null);
 
   useEffect(() => {
     detectHardware();
@@ -16,9 +16,14 @@ function SplashScreen({ onComplete }) {
   }, []);
 
   const detectPlatform = async () => {
-    if (window.electron && window.electron.getPlatform) {
-      const detectedPlatform = await window.electron.getPlatform();
-      setPlatform(detectedPlatform);
+    try {
+      if (window.electron && window.electron.getPlatform) {
+        const detectedPlatform = await window.electron.getPlatform();
+        setPlatform(detectedPlatform);
+      }
+    } catch (error) {
+      console.error('Failed to detect platform:', error);
+      setPlatform('unknown');
     }
   };
 
@@ -142,11 +147,16 @@ function SplashScreen({ onComplete }) {
 
   const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
+  // Memoize platform checks to avoid recalculating on every render
+  const platformChecks = useMemo(() => ({
+    isWindows: platform === 'win32',
+    isMac: platform === 'darwin',
+    isLinux: platform === 'linux',
+  }), [platform]);
+
   // If FFmpeg is not found, show error message with installation instructions
   if (ffmpegError) {
-    const isWindows = platform === 'win32';
-    const isMac = platform === 'darwin';
-    const isLinux = platform === 'linux';
+    const { isWindows, isMac, isLinux } = platformChecks;
     
     return (
       <div className="fixed inset-0 bg-surface z-50 flex flex-col">
