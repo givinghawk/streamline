@@ -53,28 +53,24 @@
         "ext": "slqueue",
         "name": "Streamline Queue",
         "description": "Streamline Batch Queue File",
-        "icon": "assets/icon.ico",
         "role": "Editor"
       },
       {
         "ext": "slpreset",
         "name": "Streamline Preset",
         "description": "Streamline Encoding Preset",
-        "icon": "assets/icon.ico",
         "role": "Editor"
       },
       {
         "ext": "slanalysis",
         "name": "Streamline Analysis",
         "description": "Streamline Video Analysis Data",
-        "icon": "assets/icon.ico",
         "role": "Viewer"
       },
       {
         "ext": "slreport",
         "name": "Streamline Report",
         "description": "Streamline Encoding Report",
-        "icon": "assets/icon.ico",
         "role": "Viewer"
       }
     ],
