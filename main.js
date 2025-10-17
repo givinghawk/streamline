@@ -285,6 +285,11 @@ ipcMain.handle('window-is-maximized', () => {
   return mainWindow ? mainWindow.isMaximized() : false;
 });
 
+// Platform detection handler
+ipcMain.handle('get-platform', () => {
+  return process.platform;
+});
+
 // File stats handler for getting file sizes
 ipcMain.handle('get-file-stats', async (event, filePath) => {
   try {

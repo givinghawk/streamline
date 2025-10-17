@@ -28,6 +28,8 @@ contextBridge.exposeInMainWorld('electron', {
   windowMaximize: () => ipcRenderer.invoke('window-maximize'),
   windowClose: () => ipcRenderer.invoke('window-close'),
   windowIsMaximized: () => ipcRenderer.invoke('window-is-maximized'),
+  // Platform detection
+  getPlatform: () => ipcRenderer.invoke('get-platform'),
   // Batch processing
   getFileStats: (filePath) => ipcRenderer.invoke('get-file-stats', filePath),
   analyzeQuality: (options) => ipcRenderer.invoke('analyze-quality', options),
