@@ -9,6 +9,9 @@ function SplashScreen({ onComplete }) {
   const [hardwareInfo, setHardwareInfo] = useState([]);
   const [ffmpegError, setFfmpegError] = useState(null);
   const [platform, setPlatform] = useState(null);
+  const [isInstalling, setIsInstalling] = useState(false);
+  const [installStatus, setInstallStatus] = useState('');
+  const [installError, setInstallError] = useState(null);
 
   useEffect(() => {
     detectHardware();
@@ -147,6 +150,36 @@ function SplashScreen({ onComplete }) {
 
   const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
+  const handleAutoInstall = async () => {
+    setIsInstalling(true);
+    setInstallStatus('Starting installation...');
+    setInstallError(null);
+
+    try {
+      const result = await window.electron.installFFmpeg();
+      
+      if (result.success) {
+        setInstallStatus('Installation successful! Checking FFmpeg...');
+        await delay(1000);
+        
+        // Reset error state and re-run detection
+        setFfmpegError(null);
+        setIsInstalling(false);
+        setInstallStatus('');
+        setProgress(0);
+        setStatus('Initializing...');
+        detectHardware();
+      } else {
+        setInstallError(result.error || 'Installation failed');
+        setIsInstalling(false);
+      }
+    } catch (error) {
+      console.error('Installation error:', error);
+      setInstallError(error.message || 'Failed to install FFmpeg');
+      setIsInstalling(false);
+    }
+  };
+
   // Memoize platform checks to avoid recalculating on every render
   const platformChecks = useMemo(() => ({
     isWindows: platform === 'win32',
@@ -232,16 +265,58 @@ function SplashScreen({ onComplete }) {
               </div>
             </div>
 
-            {/* Retry Button */}
+            {/* Auto Install Section */}
+            {(isWindows || isMac || isLinux) && (
+              <div className="bg-surface-elevated rounded-lg p-6 mb-6">
+                <h2 className="text-xl font-semibold mb-4 flex items-center">
+                  <SparklesIcon className="w-6 h-6 text-primary-400 mr-2" />
+                  Automatic Installation
+                </h2>
+                <p className="text-gray-400 text-sm mb-4">
+                  {isWindows && 'Streamline can attempt to install FFmpeg using winget (Windows Package Manager).'}
+                  {isMac && 'Streamline can attempt to install FFmpeg using Homebrew. Make sure Homebrew is installed first.'}
+                  {isLinux && 'Streamline can attempt to install FFmpeg using your system package manager (apt, dnf, or pacman).'}
+                </p>
+                
+                {isInstalling && (
+                  <div className="mb-4">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <div className="w-4 h-4 border-2 border-primary-600 border-t-transparent rounded-full animate-spin"></div>
+                      <span className="text-sm text-gray-300">{installStatus}</span>
+                    </div>
+                  </div>
+                )}
+                
+                {installError && (
+                  <div className="mb-4 p-3 bg-red-900/20 border border-red-500 rounded-lg">
+                    <p className="text-sm text-red-400">{installError}</p>
+                    <p className="text-xs text-gray-400 mt-2">Please try manual installation using the instructions above.</p>
+                  </div>
+                )}
+                
+                <button
+                  onClick={handleAutoInstall}
+                  disabled={isInstalling}
+                  className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-lg transition-colors flex items-center justify-center space-x-2"
+                >
+                  <SparklesIcon className="w-5 h-5" />
+                  <span>{isInstalling ? 'Installing...' : 'Auto-Install FFmpeg'}</span>
+                </button>
+              </div>
+            )}
+
+            {/* Manual Check Button */}
             <button
               onClick={() => {
                 // Reset state and re-run the full initialization process
                 setFfmpegError(null);
+                setInstallError(null);
                 setProgress(0);
                 setStatus('Initializing...');
                 detectHardware();
               }}
-              className="w-full bg-primary-600 hover:bg-primary-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
+              disabled={isInstalling}
+              className="w-full bg-primary-600 hover:bg-primary-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-lg transition-colors"
             >
               Check Again
             </button>
