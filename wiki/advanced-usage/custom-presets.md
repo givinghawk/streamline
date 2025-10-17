@@ -5,61 +5,60 @@ Create and manage your own encoding presets tailored to your specific needs and 
 ## Overview
 
 Custom presets allow you to:
-- **Save frequently used settings** for quick access
-- **Standardize encoding** across projects or teams
-- **Fine-tune parameters** for specific content types
-- **Share configurations** with others
+
+* **Save frequently used settings** for quick access
+* **Standardize encoding** across projects or teams
+* **Fine-tune parameters** for specific content types
+* **Share configurations** with others
 
 ## Creating a Custom Preset
 
 ### From the Preset Creator
 
 1. **Open Settings**
-   - Click the settings icon (gear)
-   - Navigate to "Presets" section
-
+   * Click the settings icon (gear)
+   * Navigate to "Presets" section
 2. **Click "Create New Preset"**
-   - Preset creator panel opens
-
+   * Preset creator panel opens
 3. **Configure Basic Settings**
-   - **Name**: Give your preset a descriptive name (e.g., "YouTube 1080p")
-   - **Description**: Add details about use case
-   - **Category**: Select Video, Audio, or Image
+   * **Name**: Give your preset a descriptive name (e.g., "YouTube 1080p")
+   * **Description**: Add details about use case
+   * **Category**: Select Video, Audio, or Image
+4.  **Configure Encoding Settings**
 
-4. **Configure Encoding Settings**
+    **For Video Presets:**
 
-   **For Video Presets:**
-   - **Video Codec**: H.264, H.265, AV1, VP9, or Copy
-   - **Quality Mode**: CRF, CBR, or VBR
-   - **Quality Value**: CRF value (18-28 typical) or bitrate
-   - **Audio Codec**: AAC, Opus, MP3, or Copy
-   - **Audio Bitrate**: 64-320 kbps
-   - **Resolution**: Original or specific (1080p, 720p, etc.)
-   - **Frame Rate**: Original or specific (24, 30, 60 fps)
-   - **Output Format**: MP4, MKV, or WebM
+    * **Video Codec**: H.264, H.265, AV1, VP9, or Copy
+    * **Quality Mode**: CRF, CBR, or VBR
+    * **Quality Value**: CRF value (18-28 typical) or bitrate
+    * **Audio Codec**: AAC, Opus, MP3, or Copy
+    * **Audio Bitrate**: 64-320 kbps
+    * **Resolution**: Original or specific (1080p, 720p, etc.)
+    * **Frame Rate**: Original or specific (24, 30, 60 fps)
+    * **Output Format**: MP4, MKV, or WebM
 
-   **For Audio Presets:**
-   - **Audio Codec**: AAC, Opus, MP3, FLAC, Vorbis
-   - **Bitrate**: 32-320 kbps or lossless
-   - **Sample Rate**: 44.1 kHz, 48 kHz, etc.
-   - **Channels**: Stereo, Mono, 5.1, etc.
-   - **Output Format**: MP3, OPUS, FLAC, AAC, etc.
+    **For Audio Presets:**
 
-   **For Image Presets:**
-   - **Output Format**: JPEG, PNG, WebP, GIF
-   - **Quality**: 1-100 (for lossy formats)
-   - **Resolution**: Original or specific dimensions
+    * **Audio Codec**: AAC, Opus, MP3, FLAC, Vorbis
+    * **Bitrate**: 32-320 kbps or lossless
+    * **Sample Rate**: 44.1 kHz, 48 kHz, etc.
+    * **Channels**: Stereo, Mono, 5.1, etc.
+    * **Output Format**: MP3, OPUS, FLAC, AAC, etc.
 
+    **For Image Presets:**
+
+    * **Output Format**: JPEG, PNG, WebP, GIF
+    * **Quality**: 1-100 (for lossy formats)
+    * **Resolution**: Original or specific dimensions
 5. **Advanced Options** (Optional)
-   - **Encoding Preset**: ultrafast to veryslow
-   - **Two-Pass Encoding**: Enable for better quality
-   - **Hardware Acceleration**: Force enable/disable
-   - **Custom FFmpeg Parameters**: Add advanced options
-
+   * **Encoding Preset**: ultrafast to veryslow
+   * **Two-Pass Encoding**: Enable for better quality
+   * **Hardware Acceleration**: Force enable/disable
+   * **Custom FFmpeg Parameters**: Add advanced options
 6. **Save Preset**
-   - Click "Save"
-   - Preset appears in preset list
-   - Available immediately for use
+   * Click "Save"
+   * Preset appears in preset list
+   * Available immediately for use
 
 ### From Current Settings
 
@@ -77,14 +76,15 @@ Quick method to save current configuration:
 **Name**: "YouTube 1080p Optimized"
 
 **Settings**:
-- Video Codec: H.264
-- CRF: 20
-- Resolution: 1920x1080
-- Frame Rate: 30 fps
-- Audio Codec: AAC
-- Audio Bitrate: 192 kbps
-- Format: MP4
-- Encoding Preset: slow
+
+* Video Codec: H.264
+* CRF: 20
+* Resolution: 1920x1080
+* Frame Rate: 30 fps
+* Audio Codec: AAC
+* Audio Bitrate: 192 kbps
+* Format: MP4
+* Encoding Preset: slow
 
 **Use Case**: Videos for YouTube upload, balancing quality and upload time
 
@@ -93,11 +93,12 @@ Quick method to save current configuration:
 **Name**: "Podcast - Voice Optimized"
 
 **Settings**:
-- Audio Codec: Opus
-- Bitrate: 48 kbps
-- Sample Rate: 48 kHz
-- Channels: Mono
-- Format: OPUS
+
+* Audio Codec: Opus
+* Bitrate: 48 kbps
+* Sample Rate: 48 kHz
+* Channels: Mono
+* Format: OPUS
 
 **Use Case**: Voice-only podcasts, minimum file size
 
@@ -106,13 +107,14 @@ Quick method to save current configuration:
 **Name**: "Instagram Reel (1080x1920)"
 
 **Settings**:
-- Video Codec: H.264
-- CRF: 23
-- Resolution: 1080x1920 (9:16)
-- Frame Rate: 30 fps
-- Audio Codec: AAC
-- Audio Bitrate: 128 kbps
-- Format: MP4
+
+* Video Codec: H.264
+* CRF: 23
+* Resolution: 1080x1920 (9:16)
+* Frame Rate: 30 fps
+* Audio Codec: AAC
+* Audio Bitrate: 128 kbps
+* Format: MP4
 
 **Use Case**: Vertical video for Instagram Reels/Stories
 
@@ -121,15 +123,16 @@ Quick method to save current configuration:
 **Name**: "4K Archival (HEVC)"
 
 **Settings**:
-- Video Codec: H.265
-- CRF: 18
-- Resolution: Original (4K)
-- Frame Rate: Original
-- Audio Codec: AAC
-- Audio Bitrate: 256 kbps
-- Format: MKV
-- Encoding Preset: slower
-- Two-Pass: Enabled
+
+* Video Codec: H.265
+* CRF: 18
+* Resolution: Original (4K)
+* Frame Rate: Original
+* Audio Codec: AAC
+* Audio Bitrate: 256 kbps
+* Format: MKV
+* Encoding Preset: slower
+* Two-Pass: Enabled
 
 **Use Case**: High-quality 4K archival with excellent compression
 
@@ -138,9 +141,10 @@ Quick method to save current configuration:
 **Name**: "Web Thumbnail 720p"
 
 **Settings**:
-- Format: JPEG
-- Quality: 85
-- Resolution: 1280x720
+
+* Format: JPEG
+* Quality: 85
+* Resolution: 1280x720
 
 **Use Case**: Video thumbnails for web
 
@@ -178,17 +182,18 @@ To create a variation of an existing preset:
 ### Organizing Presets
 
 **Naming Conventions**:
-- Use descriptive names: "YouTube 1080p" not "Preset1"
-- Include target resolution: "4K Archival", "720p Web"
-- Mention use case: "Podcast Voice", "Instagram Reel"
-- Add quality level: "High Quality", "Balanced", "Fast"
 
-**Categories**:
-Custom presets automatically categorize by type:
-- Video presets
-- Audio presets
-- Image presets
-- Mixed presets (if applicable)
+* Use descriptive names: "YouTube 1080p" not "Preset1"
+* Include target resolution: "4K Archival", "720p Web"
+* Mention use case: "Podcast Voice", "Instagram Reel"
+* Add quality level: "High Quality", "Balanced", "Fast"
+
+**Categories**: Custom presets automatically categorize by type:
+
+* Video presets
+* Audio presets
+* Image presets
+* Mixed presets (if applicable)
 
 ## Exporting and Importing Presets
 
@@ -203,9 +208,10 @@ To share or backup presets:
 5. Preset saved as `.json` file
 
 **Bulk Export**:
-- Select multiple presets (Ctrl/Cmd + Click)
-- Click "Export Selected"
-- All saved to single file or individual files
+
+* Select multiple presets (Ctrl/Cmd + Click)
+* Click "Export Selected"
+* All saved to single file or individual files
 
 ### Importing Presets
 
@@ -218,22 +224,25 @@ To load presets from others:
 5. Available immediately
 
 **Auto-Import**:
-- Place `.json` files in presets folder
-- Streamline auto-loads on startup
-- Location: `~/.streamline/presets/` (varies by OS)
+
+* Place `.json` files in presets folder
+* Streamline auto-loads on startup
+* Location: `~/.streamline/presets/` (varies by OS)
 
 ### Sharing Presets
 
 **With Team**:
+
 1. Export preset to `.json`
 2. Share file via email, cloud storage, etc.
 3. Team members import preset
 4. Everyone uses identical settings
 
 **Community Sharing**:
-- Create GitHub repository of presets
-- Share on forums or communities
-- Contribute to preset collections
+
+* Create GitHub repository of presets
+* Share on forums or communities
+* Contribute to preset collections
 
 ## Advanced Preset Configuration
 
@@ -268,11 +277,13 @@ Add advanced FFmpeg options to presets:
 Create presets with logic (requires custom FFmpeg params):
 
 **Example: Scale only if larger than 1080p**
+
 ```
 -vf "scale='min(1920,iw)':'min(1080,ih)':force_original_aspect_ratio=decrease"
 ```
 
 **Example: Normalize audio only if needed**
+
 ```
 -af "loudnorm=I=-16:TP=-1.5:LRA=11"
 ```
@@ -282,21 +293,24 @@ Create presets with logic (requires custom FFmpeg params):
 Create presets optimized for specific GPUs:
 
 **NVIDIA RTX Preset**:
-- Codec: h264_nvenc
-- Preset: p7 (highest quality)
-- Tune: hq
-- RC: vbr
-- Multipass: 2
+
+* Codec: h264\_nvenc
+* Preset: p7 (highest quality)
+* Tune: hq
+* RC: vbr
+* Multipass: 2
 
 **AMD Radeon Preset**:
-- Codec: h264_amf
-- Quality: quality
-- RC: vbr
+
+* Codec: h264\_amf
+* Quality: quality
+* RC: vbr
 
 **Intel Arc Preset**:
-- Codec: h264_qsv
-- Preset: veryslow
-- Look-ahead: enabled
+
+* Codec: h264\_qsv
+* Preset: veryslow
+* Look-ahead: enabled
 
 ## Preset Best Practices
 
@@ -314,14 +328,16 @@ Before using on large batches:
 ### Documenting Presets
 
 Include in description:
-- Target use case
-- Expected quality level
-- Typical file size reduction
-- Encoding speed estimate
-- Compatible formats
-- Hardware requirements (if any)
+
+* Target use case
+* Expected quality level
+* Typical file size reduction
+* Encoding speed estimate
+* Compatible formats
+* Hardware requirements (if any)
 
 **Example Description**:
+
 ```
 YouTube 1080p upload preset. Optimized for:
 - 1080p content
@@ -336,7 +352,7 @@ YouTube 1080p upload preset. Optimized for:
 When updating presets:
 
 1. Export current version before editing
-2. Save with version number (e.g., "YouTube_v2.json")
+2. Save with version number (e.g., "YouTube\_v2.json")
 3. Test new version thoroughly
 4. Keep old version as backup
 5. Document changes
@@ -346,22 +362,25 @@ When updating presets:
 Organize presets by workflow:
 
 **Content Creator Collection**:
-- YouTube 4K
-- YouTube 1080p
-- Instagram Reel
-- TikTok Vertical
-- Twitter Post
+
+* YouTube 4K
+* YouTube 1080p
+* Instagram Reel
+* TikTok Vertical
+* Twitter Post
 
 **Archival Collection**:
-- 4K HEVC High Quality
-- 1080p Balanced
-- Audio Lossless
-- Audio High Quality
+
+* 4K HEVC High Quality
+* 1080p Balanced
+* Audio Lossless
+* Audio High Quality
 
 **Podcast Collection**:
-- Voice Mono 48k
-- Voice Stereo 64k
-- Music Stereo 128k
+
+* Voice Mono 48k
+* Voice Stereo 64k
+* Music Stereo 128k
 
 ## Troubleshooting Custom Presets
 
@@ -370,6 +389,7 @@ Organize presets by workflow:
 **Problem**: Saved preset not showing in list
 
 **Solutions**:
+
 1. Restart Streamline
 2. Check preset file exists in presets folder
 3. Verify JSON syntax is valid
@@ -380,6 +400,7 @@ Organize presets by workflow:
 **Problem**: Error when using custom preset
 
 **Solutions**:
+
 1. Test with built-in preset first (isolate issue)
 2. Check FFmpeg supports codec/format combination
 3. Verify custom parameters are valid
@@ -391,6 +412,7 @@ Organize presets by workflow:
 **Problem**: Quality or file size not as expected
 
 **Solutions**:
+
 1. Verify CRF/bitrate settings
 2. Check resolution and frame rate
 3. Ensure correct codec selected
@@ -402,6 +424,7 @@ Organize presets by workflow:
 **Problem**: Cannot import preset file
 
 **Solutions**:
+
 1. Verify file is valid JSON
 2. Check file extension is `.json`
 3. Ensure preset format is compatible
@@ -419,6 +442,7 @@ Organize presets by workflow:
 ### Per-File Presets in Batch
 
 Mix different custom presets in one batch:
+
 1. File 1: "YouTube 1080p"
 2. File 2: "Instagram Reel"
 3. File 3: "Podcast Voice"
@@ -427,6 +451,7 @@ Mix different custom presets in one batch:
 ### Preset-Based Workflows
 
 **Example Workflow**:
+
 1. Receive raw footage
 2. Apply "4K Archival" preset → Save master copy
 3. Apply "YouTube 1080p" preset → Upload version
@@ -435,8 +460,8 @@ Mix different custom presets in one batch:
 
 ## Next Steps
 
-- Test presets with [Quality Analysis](Quality-Analysis.md)
-- Validate results with [Video Comparison](Video-Comparison.md)
-- Use in [Batch Processing](Batch-Processing.md) workflows
-- Share with community or team
-- Explore [Advanced Usage](Advanced-Usage.md) for complex parameters
+* Test presets with [Quality Analysis](quality-analysis.md)
+* Validate results with [Video Comparison](video-comparison.md)
+* Use in [Batch Processing](batch-processing.md) workflows
+* Share with community or team
+* Explore [Advanced Usage](./) for complex parameters

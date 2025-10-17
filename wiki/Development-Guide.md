@@ -6,18 +6,19 @@ Learn how to set up a development environment and contribute to Streamline.
 
 ### Required Software
 
-- **Node.js** 18.x or higher
-- **npm** 9.x or higher
-- **Git** 2.x or higher
-- **FFmpeg** (for testing encoding)
-- **Code editor** (VS Code recommended)
+* **Node.js** 18.x or higher
+* **npm** 9.x or higher
+* **Git** 2.x or higher
+* **FFmpeg** (for testing encoding)
+* **Code editor** (VS Code recommended)
 
 ### Operating System
 
 Development is supported on:
-- Windows 10/11
-- macOS 10.13+
-- Linux (Ubuntu 18.04+, Fedora, Arch)
+
+* Windows 10/11
+* macOS 10.13+
+* Linux (Ubuntu 18.04+, Fedora, Arch)
 
 ## Setting Up Development Environment
 
@@ -35,11 +36,12 @@ npm install
 ```
 
 This installs:
-- Electron
-- React and React DOM
-- Vite (build tool)
-- Tailwind CSS
-- Development dependencies
+
+* Electron
+* React and React DOM
+* Vite (build tool)
+* Tailwind CSS
+* Development dependencies
 
 ### 3. Verify FFmpeg Installation
 
@@ -47,7 +49,7 @@ This installs:
 ffmpeg -version
 ```
 
-If not installed, refer to [Installation Guide](Installation.md).
+If not installed, refer to [Installation Guide](./).
 
 ### 4. Run Development Server
 
@@ -56,9 +58,10 @@ npm run electron:dev
 ```
 
 This starts:
-- Vite development server (port 5173)
-- Electron application with hot reload
-- Development tools enabled
+
+* Vite development server (port 5173)
+* Electron application with hot reload
+* Development tools enabled
 
 ### 5. Verify Setup
 
@@ -119,6 +122,7 @@ streamline/
 ### Hot Reload
 
 Changes to React components reload automatically:
+
 1. Edit component in `src/components/`
 2. Save file
 3. UI updates instantly
@@ -126,6 +130,7 @@ Changes to React components reload automatically:
 ### Main Process Changes
 
 Changes to Electron main process require restart:
+
 1. Edit `main.js` or files in `src/electron/`
 2. Stop development server (Ctrl+C)
 3. Run `npm run electron:dev` again
@@ -146,12 +151,14 @@ Changes to Electron main process require restart:
 ```
 
 Or use keyboard shortcut:
-- **Windows/Linux**: `Ctrl + Shift + I`
-- **macOS**: `Cmd + Option + I`
+
+* **Windows/Linux**: `Ctrl + Shift + I`
+* **macOS**: `Cmd + Option + I`
 
 #### Main Process Debugging
 
 Add to `main.js`:
+
 ```javascript
 console.log('Debug message');
 ```
@@ -232,6 +239,7 @@ function runFFmpeg(args) {
 #### IPC Communication
 
 Renderer to Main:
+
 ```javascript
 // Renderer process
 window.electron.startEncode(options);
@@ -269,9 +277,10 @@ npm run package
 ```
 
 Creates distributable package in `release/` directory:
-- **Windows**: `.exe` installer
-- **macOS**: `.dmg` disk image
-- **Linux**: `.AppImage` file
+
+* **Windows**: `.exe` installer
+* **macOS**: `.dmg` disk image
+* **Linux**: `.AppImage` file
 
 ### Platform-Specific Builds
 
@@ -310,38 +319,37 @@ Edit `package.json` → `build` section:
 ### Manual Testing
 
 1. **Smoke Test**:
-   - Launch application
-   - Add test file
-   - Select preset
-   - Start encode
-   - Verify output
-
+   * Launch application
+   * Add test file
+   * Select preset
+   * Start encode
+   * Verify output
 2. **Feature Testing**:
-   - Test each feature systematically
-   - Check edge cases
-   - Verify error handling
-
+   * Test each feature systematically
+   * Check edge cases
+   * Verify error handling
 3. **Platform Testing**:
-   - Test on target platforms
-   - Verify platform-specific features
-   - Check installers work correctly
+   * Test on target platforms
+   * Verify platform-specific features
+   * Check installers work correctly
 
 ### Automated Testing
 
 Currently, Streamline uses manual testing. Future plans include:
-- Unit tests (Jest)
-- Integration tests (Playwright)
-- E2E tests
+
+* Unit tests (Jest)
+* Integration tests (Playwright)
+* E2E tests
 
 ## Code Style
 
 ### JavaScript/React
 
-- **ES6+** syntax
-- **Functional components** with hooks
-- **Arrow functions** for callbacks
-- **Destructuring** props and state
-- **Meaningful variable names**
+* **ES6+** syntax
+* **Functional components** with hooks
+* **Arrow functions** for callbacks
+* **Destructuring** props and state
+* **Meaningful variable names**
 
 ### Formatting
 
@@ -387,10 +395,10 @@ export default function MyComponent({ prop1, prop2 }) {
 
 ### CSS (Tailwind)
 
-- Use Tailwind utility classes
-- Custom CSS in `index.css` only when necessary
-- Responsive design: mobile-first
-- Dark mode support: `dark:` prefix
+* Use Tailwind utility classes
+* Custom CSS in `index.css` only when necessary
+* Responsive design: mobile-first
+* Dark mode support: `dark:` prefix
 
 ## Git Workflow
 
@@ -419,10 +427,11 @@ git commit -m "refactor: Simplify preset selection logic"
 
 1. Create feature branch
 2. Make changes and commit
-3. Push to fork:
-   ```bash
-   git push origin feature/my-new-feature
-   ```
+3.  Push to fork:
+
+    ```bash
+    git push origin feature/my-new-feature
+    ```
 4. Open pull request on GitHub
 5. Describe changes
 6. Wait for review
@@ -451,23 +460,24 @@ export const PRESETS = [
 
 ### Adding New Codec Support
 
-1. Add codec to constants:
-   ```javascript
-   // src/constants/presets.js
-   export const VIDEO_CODECS = [
-     // ... existing
-     { value: 'new_codec', label: 'New Codec', hwAccel: false }
-   ];
-   ```
+1.  Add codec to constants:
 
-2. Update FFmpeg command builder:
-   ```javascript
-   // src/electron/ffmpeg.js
-   if (codec === 'new_codec') {
-     args.push('-c:v', 'new_codec');
-     // Codec-specific parameters
-   }
-   ```
+    ```javascript
+    // src/constants/presets.js
+    export const VIDEO_CODECS = [
+      // ... existing
+      { value: 'new_codec', label: 'New Codec', hwAccel: false }
+    ];
+    ```
+2.  Update FFmpeg command builder:
+
+    ```javascript
+    // src/electron/ffmpeg.js
+    if (codec === 'new_codec') {
+      args.push('-c:v', 'new_codec');
+      // Codec-specific parameters
+    }
+    ```
 
 ### Adding UI Component
 
@@ -521,21 +531,21 @@ npm install
 
 ### Documentation
 
-- [Electron Documentation](https://www.electronjs.org/docs)
-- [React Documentation](https://react.dev/)
-- [Vite Documentation](https://vitejs.dev/)
-- [Tailwind CSS](https://tailwindcss.com/docs)
-- [FFmpeg Documentation](https://ffmpeg.org/documentation.html)
+* [Electron Documentation](https://www.electronjs.org/docs)
+* [React Documentation](https://react.dev/)
+* [Vite Documentation](https://vitejs.dev/)
+* [Tailwind CSS](https://tailwindcss.com/docs)
+* [FFmpeg Documentation](https://ffmpeg.org/documentation.html)
 
 ### Tools
 
-- [VS Code](https://code.visualstudio.com/)
-- [React DevTools](https://react.dev/learn/react-developer-tools)
-- [Electron Devtools](https://www.electronjs.org/docs/latest/tutorial/devtools-extension)
+* [VS Code](https://code.visualstudio.com/)
+* [React DevTools](https://react.dev/learn/react-developer-tools)
+* [Electron Devtools](https://www.electronjs.org/docs/latest/tutorial/devtools-extension)
 
 ## Next Steps
 
-- Read [Contributing Guide](Contributing.md) for contribution guidelines
-- Check [Roadmap](Roadmap.md) for planned features
-- Join development discussions on GitHub
-- Start with "good first issue" labeled issues
+* Read [Contributing Guide](Contributing.md) for contribution guidelines
+* Check [Roadmap](Roadmap.md) for planned features
+* Join development discussions on GitHub
+* Start with "good first issue" labeled issues
