@@ -656,3 +656,237 @@ ipcMain.handle('open-file-dialog', async (event, options) => {
   return result.canceled ? null : result.filePaths[0];
 });
 
+// Trim video handler
+ipcMain.handle('trim-video', async (event, options) => {
+  const { inputPath, segments, outputPath } = options;
+  
+  if (!ffmpegHandler) {
+    throw new Error('FFmpeg handler not loaded');
+  }
+  
+  try {
+    const result = await ffmpegHandler.trimVideo(inputPath, segments, outputPath);
+    mainWindow.webContents.send('trim-video-complete', { success: true, result });
+    return result;
+  } catch (error) {
+    mainWindow.webContents.send('trim-video-error', { error: error.message });
+    throw error;
+  }
+});
+
+// Concat videos handler
+ipcMain.handle('concat-videos', async (event, options) => {
+  const { inputPaths, outputPath } = options;
+  
+  if (!ffmpegHandler) {
+    throw new Error('FFmpeg handler not loaded');
+  }
+  
+  try {
+    const result = await ffmpegHandler.concatVideos(inputPaths, outputPath);
+    mainWindow.webContents.send('concat-videos-complete', { success: true, result });
+    return result;
+  } catch (error) {
+    mainWindow.webContents.send('concat-videos-error', { error: error.message });
+    throw error;
+  }
+});
+
+// Get video info handler (YouTube/YTDL)
+ipcMain.handle('get-video-info', async (event, url) => {
+  try {
+    const { spawn } = require('child_process');
+    
+    return new Promise((resolve, reject) => {
+      let output = '';
+      let errors = '';
+      
+      const ytdlp = spawn('yt-dlp', [
+        url,
+        '--dump-json',
+        '--no-warnings',
+      ]);
+      
+      ytdlp.stdout.on('data', (data) => {
+        output += data.toString();
+      });
+      
+      ytdlp.stderr.on('data', (data) => {
+        errors += data.toString();
+      });
+      
+      ytdlp.on('close', (code) => {
+        if (code === 0 && output) {
+          try {
+            const videoData = JSON.parse(output);
+            resolve({
+              title: videoData.title || 'Unknown Title',
+              duration: formatDuration(videoData.duration || 0),
+              uploader: videoData.uploader || 'Unknown',
+              description: videoData.description || '',
+              videoId: videoData.id || '',
+            });
+          } catch (e) {
+            reject(new Error(`Failed to parse video info: ${e.message}`));
+          }
+        } else {
+          reject(new Error(`Failed to get video info: ${errors || 'Unknown error'}`));
+        }
+      });
+      
+      ytdlp.on('error', (err) => {
+        reject(new Error(`yt-dlp not found or error: ${err.message}`));
+      });
+    });
+  } catch (error) {
+    throw new Error(`Failed to get video info: ${error.message}`);
+  }
+});
+
+// Download video handler
+ipcMain.handle('download-video', async (event, options) => {
+  const { url, outputPath, format, audioOnly } = options;
+  
+  try {
+    const { spawn } = require('child_process');
+    const path = require('path');
+    const fs = require('fs');
+    
+    // Create output directory if it doesn't exist
+    if (!fs.existsSync(outputPath)) {
+      fs.mkdirSync(outputPath, { recursive: true });
+    }
+    
+    // Build format string
+    let formatString;
+    if (audioOnly) {
+      formatString = 'bestaudio/best';
+    } else if (format === 'best') {
+      formatString = 'bestvideo+bestaudio/best';
+    } else if (format === 'worst') {
+      formatString = 'worstvideo+worstaudio/worst';
+    } else {
+      // Quality-based filter (e.g., "720p" -> "bestvideo[height<=720]+bestaudio/best")
+      const height = format.replace('p', '');
+      formatString = `bestvideo[height<=${height}]+bestaudio/best`;
+    }
+    
+    const outputTemplate = path.join(outputPath, '%(title)s.%(ext)s');
+    
+    return new Promise((resolve, reject) => {
+      let lastProgress = 0;
+      let downloadedFile = '';
+      
+      const args = [
+        url,
+        `-f${formatString}`,
+        `-o${outputTemplate}`,
+        '--progress',
+        '--newline',
+        '--no-warnings',
+      ];
+      
+      if (audioOnly) {
+        args.push('-x');
+        args.push('--audio-format');
+        args.push('mp3');
+      }
+      
+      const ytdlp = spawn('yt-dlp', args);
+      
+      ytdlp.stdout.on('data', (data) => {
+        const output = data.toString();
+        
+        // Parse progress from output
+        const progressMatch = output.match(/\[download\]\s+(\d+\.?\d*)%/);
+        if (progressMatch) {
+          const progress = Math.round(parseFloat(progressMatch[1]));
+          if (progress > lastProgress) {
+            lastProgress = progress;
+            mainWindow.webContents.send('download-progress', {
+              progress,
+              status: `Downloading... ${progress}%`,
+            });
+          }
+        }
+        
+        // Extract filename from output
+        const destinationMatch = output.match(/Destination:\s*(.+?)(?:\n|$)/);
+        if (destinationMatch) {
+          downloadedFile = destinationMatch[1].trim();
+        }
+      });
+      
+      ytdlp.stderr.on('data', (data) => {
+        const output = data.toString();
+        
+        // Parse progress from stderr
+        const progressMatch = output.match(/\[download\]\s+(\d+\.?\d*)%/);
+        if (progressMatch) {
+          const progress = Math.round(parseFloat(progressMatch[1]));
+          if (progress > lastProgress) {
+            lastProgress = progress;
+            mainWindow.webContents.send('download-progress', {
+              progress,
+              status: `Downloading... ${progress}%`,
+            });
+          }
+        }
+      });
+      
+      ytdlp.on('close', (code) => {
+        if (code === 0) {
+          mainWindow.webContents.send('download-progress', {
+            progress: 100,
+            status: 'Download complete!',
+          });
+          
+          // Try to find the downloaded file
+          let finalPath = downloadedFile;
+          if (!finalPath || !fs.existsSync(finalPath)) {
+            // Fall back to finding newest file in directory
+            const files = fs.readdirSync(outputPath);
+            if (files.length > 0) {
+              const newestFile = files
+                .map(f => ({
+                  name: f,
+                  time: fs.statSync(path.join(outputPath, f)).mtime.getTime(),
+                }))
+                .sort((a, b) => b.time - a.time)[0];
+              
+              finalPath = path.join(outputPath, newestFile.name);
+            }
+          }
+          
+          resolve({
+            success: true,
+            filePath: finalPath || '',
+            fileName: path.basename(finalPath || 'unknown'),
+          });
+        } else {
+          reject(new Error(`Download failed with code ${code}`));
+        }
+      });
+      
+      ytdlp.on('error', (err) => {
+        reject(new Error(`yt-dlp error: ${err.message}`));
+      });
+    });
+  } catch (error) {
+    throw new Error(`Download error: ${error.message}`);
+  }
+});
+
+// Helper function to format duration
+function formatDuration(seconds) {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = seconds % 60;
+  
+  if (hours > 0) {
+    return `${hours}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+  }
+  return `${minutes}:${String(secs).padStart(2, '0')}`;
+}
+
+

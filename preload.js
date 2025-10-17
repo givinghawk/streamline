@@ -69,6 +69,18 @@ contextBridge.exposeInMainWorld('electron', {
   removeFileOpenedListener: () => {
     ipcRenderer.removeAllListeners('file-opened');
   },
+  // Trim and Concat
+  trimVideo: (options) => ipcRenderer.invoke('trim-video', options),
+  concatVideos: (options) => ipcRenderer.invoke('concat-videos', options),
+  // Download
+  getVideoInfo: (url) => ipcRenderer.invoke('get-video-info', url),
+  downloadVideo: (options) => ipcRenderer.invoke('download-video', options),
+  onDownloadProgress: (callback) => {
+    ipcRenderer.on('download-progress', (event, data) => callback(data));
+  },
+  removeDownloadProgressListener: () => {
+    ipcRenderer.removeAllListeners('download-progress');
+  },
 });
 
 console.log('Preload script completed - window.electron should be available');

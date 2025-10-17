@@ -13,6 +13,8 @@ import BatchQueue, { QueueStatus } from './components/BatchQueue';
 import UpdateNotification from './components/UpdateNotification';
 import ModeTabs from './components/ModeTabs';
 import AnalysisPanel from './components/AnalysisPanel';
+import VideoTrimConcat from './components/VideoTrimConcat';
+import Download from './components/Download';
 import KeyboardShortcutsHelp from './components/KeyboardShortcutsHelp';
 import { useSettings } from './contexts/SettingsContext';
 import { detectFileType, filterPresetsByFileType, getRecommendedPreset } from './utils/fileTypeDetection';
@@ -810,6 +812,10 @@ function App() {
             onExportAnalysis={handleExportAnalysis}
             onImportAnalysis={handleImportAnalysis}
           />
+        ) : currentMode === 'trimconcat' ? (
+          <VideoTrimConcat />
+        ) : currentMode === 'download' ? (
+          <Download />
         ) : currentMode === 'import' ? (
           /* Import Mode - Just drop zone and basic info */
           <div className="space-y-6">

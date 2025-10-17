@@ -920,4 +920,130 @@ module.exports = {
   getFileInfo,
   encodeFile,
   analyzeQuality,
+  trimVideo,
+  concatVideos,
 };
+
+/**
+ * Trims a video file into segments
+ */
+async function trimVideo(inputPath, segments, outputDir) {
+  return new Promise((resolve, reject) => {
+    try {
+      const baseName = path.parse(inputPath).name;
+      const ext = path.parse(inputPath).ext;
+      
+      let completed = 0;
+      let errors = [];
+
+      segments.forEach((segment, index) => {
+        const startTime = Math.floor(segment.startTime * 1000) / 1000; // Convert to seconds with precision
+        const duration = Math.floor((segment.endTime - segment.startTime) * 1000) / 1000;
+        const outputPath = path.join(outputDir, `${baseName}_segment_${index + 1}${ext}`);
+
+        const ffmpegArgs = [
+          '-i', inputPath,
+          '-ss', startTime.toString(),
+          '-t', duration.toString(),
+          '-c', 'copy', // Copy codec, don't re-encode
+          '-y', // Overwrite output file
+          outputPath,
+        ];
+
+        const ffmpeg = spawn('ffmpeg', ffmpegArgs);
+
+        ffmpeg.on('close', (code) => {
+          completed++;
+          
+          if (code !== 0) {
+            errors.push(`Segment ${index + 1} failed with code ${code}`);
+          }
+
+          if (completed === segments.length) {
+            if (errors.length > 0) {
+              reject(new Error(errors.join('\n')));
+            } else {
+              resolve({
+                success: true,
+                segmentsCreated: segments.length,
+                outputDir,
+              });
+            }
+          }
+        });
+
+        ffmpeg.on('error', (error) => {
+          completed++;
+          errors.push(`Segment ${index + 1} error: ${error.message}`);
+
+          if (completed === segments.length) {
+            reject(new Error(errors.join('\n')));
+          }
+        });
+
+        // Suppress FFmpeg output
+        ffmpeg.stdout.on('data', () => {});
+        ffmpeg.stderr.on('data', () => {});
+      });
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
+
+/**
+ * Concatenates multiple video files
+ * Note: This requires files to have compatible codecs
+ */
+async function concatVideos(inputPaths, outputPath) {
+  return new Promise((resolve, reject) => {
+    try {
+      // Create concat demuxer file
+      const concatFilePath = path.join(os.tmpdir(), `concat_${Date.now()}.txt`);
+      const concatContent = inputPaths
+        .map(file => `file '${file.replace(/\\/g, '\\\\')}'`)
+        .join('\n');
+
+      fs.promises.writeFile(concatFilePath, concatContent)
+        .then(() => {
+          const ffmpegArgs = [
+            '-f', 'concat',
+            '-safe', '0',
+            '-i', concatFilePath,
+            '-c', 'copy', // Copy codec, don't re-encode
+            '-y', // Overwrite output file
+            outputPath,
+          ];
+
+          const ffmpeg = spawn('ffmpeg', ffmpegArgs);
+
+          ffmpeg.on('close', (code) => {
+            // Clean up temp file
+            fs.promises.unlink(concatFilePath).catch(() => {});
+
+            if (code === 0) {
+              resolve({
+                success: true,
+                filesConcatenated: inputPaths.length,
+                outputPath,
+              });
+            } else {
+              reject(new Error(`FFmpeg concat failed with code ${code}`));
+            }
+          });
+
+          ffmpeg.on('error', (error) => {
+            fs.promises.unlink(concatFilePath).catch(() => {});
+            reject(error);
+          });
+
+          // Suppress FFmpeg output
+          ffmpeg.stdout.on('data', () => {});
+          ffmpeg.stderr.on('data', () => {});
+        })
+        .catch(reject);
+    } catch (error) {
+      reject(error);
+    }
+  });
+}

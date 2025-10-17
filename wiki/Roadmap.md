@@ -16,6 +16,11 @@ See [CHANGELOG.md](../CHANGELOG.md) for details on current release.
 - [x] **Report generation** - Export encoding reports
 - [x] **File associations** - Double-click to open in Streamline
 
+**Video Editing and Downloading** ✅
+- [x] **Video trimming/concat** - Trim videos into segments and concatenate multiple videos
+- [x] **YouTube/ytdl support** - Download videos from 1000+ supported sites
+- [x] **Audio extraction** - Extract audio from downloaded videos as MP3
+
 ## Short Term (Next 3-6 Months)
 
 ### v1.2.0 - Enhanced Quality and Analysis
@@ -36,7 +41,7 @@ See [CHANGELOG.md](../CHANGELOG.md) for details on current release.
 - [ ] **Automatic quality validation** - Flag encodes below quality threshold
 
 **UI/UX Improvements**
-- [x] **Mode-based interface** - Separate Import/Encode/Analysis tabs (v0.3.0)
+- [x] **Mode-based interface** - Separate Import/Encode/Analysis/Trim-Concat/Download tabs (v0.5.0)
 - [x] **Update notifications** - GitHub release checking with beta/stable channels (v0.3.0)
 - [x] **Keyboard shortcuts** - Full keyboard navigation (v0.3.0)
 - [x] **Preset search** - Search and filter presets (v0.3.0)
@@ -52,10 +57,13 @@ See [CHANGELOG.md](../CHANGELOG.md) for details on current release.
 - [x] **HDR support** - HDR10, HDR10+, Dolby Vision (v0.3.0)
 - [x] **10-bit encoding** - 10-bit color depth support (v0.3.0)
 - [x] **Target file size** - Automatic bitrate calculation for target file size (v0.3.0)
+- [x] **Video trimming/concat** - Trim, cut, and concatenate video segments (v0.5.0)
 - [ ] **Segment encoding** - Encode specific time ranges
 - [ ] **Chapter support** - Preserve and add chapters
 - [ ] **Subtitle support** - Embed, extract, and burn-in subtitles
 - [ ] **Multi-audio tracks** - Preserve multiple audio streams
+- [ ] **LUTs** - Convert from common LOG profiles to Rec709
+- [ ] **MLV support** - Raw video from magic lantern support (MLV App decoding)
 
 **Batch Enhancements**
 - [ ] **Queue reordering** - Drag-and-drop queue management
@@ -78,6 +86,8 @@ See [CHANGELOG.md](../CHANGELOG.md) for details on current release.
 - [ ] **Metadata preservation** - Keep file metadata, tags
 - [ ] **Preset chains** - Apply multiple presets sequentially
 - [ ] **Conditional workflows** - IF/THEN rules for encoding
+- [ ] **Network share support** - Encode from network locations (SMB, NFS, etc.)
+- [ ] **Plex naming and help** - Plex-compatible naming conventions and guidance
 
 **Automation**
 - [ ] **Command-line interface** - Headless operation
@@ -91,6 +101,7 @@ See [CHANGELOG.md](../CHANGELOG.md) for details on current release.
 - [ ] **FTP/SFTP** - Upload to servers automatically
 - [ ] **YouTube integration** - Direct upload to YouTube
 - [ ] **Dropbox/Google Drive** - Sync with cloud storage
+- [ ] **MakeMKV integration** - Link with MakeMKV for disc encoding workflows
 - [ ] **Plugin system** - Extend functionality with plugins
 
 ### v1.5.0 - Professional Features
@@ -101,6 +112,15 @@ See [CHANGELOG.md](../CHANGELOG.md) for details on current release.
 - [ ] **Audio mixing** - Mix multiple audio tracks
 - [ ] **Custom filters** - Video and audio filters
 - [ ] **Watermarking** - Add text/image watermarks
+- [ ] **Effects library** - Common video effects
+- [ ] **Subtitle creator** - Create subtitles with Whisper integration for auto-subtitles
+
+**Audio and Visualization**
+- [ ] **Audio visualization** - Waveform display and analysis
+- [ ] **Progress notifications** - Detailed progress updates
+- [ ] **Statistics dashboard** - Encoding statistics and history
+- [ ] **Theming engine** - Community themes support
+- [ ] **Language support** - Internationalization (i18n)
 
 **Quality Control**
 - [ ] **QC reports** - Generate quality control reports
@@ -108,6 +128,7 @@ See [CHANGELOG.md](../CHANGELOG.md) for details on current release.
 - [ ] **Automated testing** - Test encodes against criteria
 - [ ] **Diff reports** - Detailed difference analysis
 - [ ] **Compliance presets** - Broadcast/platform specifications
+- [ ] **Comparison mode improvements** - More comparison tools
 
 **Organization**
 - [ ] **Project management** - Organize files into projects
@@ -122,8 +143,11 @@ See [CHANGELOG.md](../CHANGELOG.md) for details on current release.
 - [ ] **AI-powered encoding** - Optimal settings from content analysis
 - [ ] **Smart presets** - Learn from your encoding patterns
 - [ ] **Upscaling** - AI-powered video upscaling
+- [ ] **AI denoise** - Machine learning-based video denoising
 - [ ] **Noise reduction** - ML-based denoising
 - [ ] **Content-aware encoding** - Adjust settings per scene
+- [ ] **Gemini integration** - AI presets based on complexity and characteristics
+- [ ] **AI translation** - Automatic subtitle translation with Gemini
 
 **Advanced Features**
 - [ ] **Recording** - Record internet streams
@@ -131,6 +155,8 @@ See [CHANGELOG.md](../CHANGELOG.md) for details on current release.
 - [ ] **Cluster support** - Farm rendering
 - [ ] **Real-time preview** - See encoding output in real-time
 - [ ] **VR/360° support** - Encode VR and 360° video
+- [ ] **Timeline editor** - Basic video editing interface
+- [ ] **Format conversion** - More format conversion options
 
 **Platform Expansion**
 - [ ] **Web interface** - Browser-based control panel
@@ -145,22 +171,31 @@ Features requested by the community, under consideration:
 ### High Priority
 - [x] **Preset import/export improvements** - Bulk operations
 - [ ] **Custom FFmpeg builds** - Support custom FFmpeg versions
-- [ ] **Network share support** - Encode from network locations
 - [ ] **Batch preset application** - Apply preset to all files easily
-- [ ] **Progress notifications** - More detailed progress updates
 
-### Medium Priority
-- [ ] **Theming engine** - Community themes
-- [ ] **Language support** - Internationalization
-- [ ] **Statistics dashboard** - Encoding statistics and history
-- [ ] **Comparison mode improvements** - More comparison tools
-- [x] **Export queue** - Save queue for later (.slqueue files) (v0.5.0)
+### Completed (v0.5.0)
+- [x] **Export queue** - Save queue for later (.slqueue files)
+- [x] **Video trimming/concat** - Trim and concatenate video
+- [x] **YouTube/ytdl support** - Download from 1000+ sites
 
-### Under Consideration
-- [ ] **Format conversion** - More format conversion options
-- [ ] **Audio visualization** - Waveform display
-- [ ] **Timeline editor** - Basic video editing
-- [ ] **Effects library** - Common video effects
+### In Progress/Planned
+- [ ] **Network share support** - Encode from network locations (v1.4.0)
+- [ ] **Progress notifications** - More detailed progress updates (v1.5.0)
+- [ ] **Theming engine** - Community themes (v1.5.0)
+- [ ] **Language support** - Internationalization (v1.5.0)
+- [ ] **Statistics dashboard** - Encoding statistics and history (v1.5.0)
+- [ ] **Comparison mode improvements** - More comparison tools (v1.5.0)
+- [ ] **Format conversion** - More format conversion options (v2.0.0)
+- [ ] **Audio visualization** - Waveform display (v1.5.0)
+- [ ] **Timeline editor** - Basic video editing (v2.0.0)
+- [ ] **Effects library** - Common video effects (v1.5.0)
+- [ ] **LUTs** - Convert from common LOG profiles to Rec709 (v1.3.0)
+- [ ] **MLV support** - Raw video from magic lantern (v1.3.0)
+- [ ] **AI denoise** - Machine learning-based denoising (v2.0.0)
+- [ ] **Subtitle creator** - Create subtitles with Whisper integration (v1.5.0)
+- [ ] **Gemini integration** - AI presets and translation (v2.0.0)
+- [ ] **Plex naming and help** - Plex-compatible naming (v1.4.0)
+- [ ] **MakeMKV integration** - Link with MakeMKV (v1.4.0)
 
 ## Platform-Specific Features
 
