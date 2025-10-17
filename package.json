@@ -1,6 +1,6 @@
 {
   "name": "streamline",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "A powerful FFmpeg frontend for media encoding and optimization",
   "main": "main.js",
   "scripts": {
@@ -48,6 +48,32 @@
       "buildResources": "assets",
       "output": "release"
     },
+    "fileAssociations": [
+      {
+        "ext": "slqueue",
+        "name": "Streamline Queue",
+        "description": "Streamline Batch Queue File",
+        "role": "Editor"
+      },
+      {
+        "ext": "slpreset",
+        "name": "Streamline Preset",
+        "description": "Streamline Encoding Preset",
+        "role": "Editor"
+      },
+      {
+        "ext": "slanalysis",
+        "name": "Streamline Analysis",
+        "description": "Streamline Video Analysis Data",
+        "role": "Viewer"
+      },
+      {
+        "ext": "slreport",
+        "name": "Streamline Report",
+        "description": "Streamline Encoding Report",
+        "role": "Viewer"
+      }
+    ],
     "win": {
       "target": "nsis"
     },

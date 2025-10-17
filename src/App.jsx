@@ -71,14 +71,92 @@ function App() {
           );
         }
       });
+
+      // Setup file opened listener for file associations
+      window.electron.onFileOpened(async (filePath) => {
+        console.log('File opened:', filePath);
+        await handleFileAssociation(filePath);
+      });
     }
 
     return () => {
       if (window.electron) {
         window.electron.removeEncodingProgressListener();
+        window.electron.removeFileOpenedListener();
       }
     };
   }, [currentQueueItemId]);
+
+  // Handle file association opening
+  const handleFileAssociation = async (filePath) => {
+    try {
+      if (filePath.endsWith('.slqueue')) {
+        const data = await window.electron.loadQueue(filePath);
+        
+        // Verify files still exist
+        const validatedQueue = [];
+        for (const item of data.queue) {
+          const exists = await window.electron.checkFileExists(item.filePath);
+          if (exists) {
+            validatedQueue.push({
+              ...item,
+              file: {
+                name: item.fileName,
+                path: item.filePath,
+                size: item.fileSize,
+              },
+            });
+          }
+        }
+        
+        setQueue(validatedQueue);
+        setOverwriteFiles(data.settings.overwriteFiles ?? false);
+        setMaxConcurrentJobs(data.settings.maxConcurrentJobs ?? 1);
+        setCurrentMode('encode');
+        
+        if (window.electron.showNotification) {
+          window.electron.showNotification({
+            title: 'Queue Loaded',
+            body: `Loaded ${validatedQueue.length} items from queue`,
+          });
+        }
+      } else if (filePath.endsWith('.slpreset')) {
+        const data = await window.electron.loadPreset(filePath);
+        setSelectedPreset(data.preset);
+        if (data.preset.settings) {
+          setAdvancedSettings(data.preset.settings);
+          setShowAdvanced(true);
+        }
+        setCurrentMode('encode');
+        
+        if (window.electron.showNotification) {
+          window.electron.showNotification({
+            title: 'Preset Loaded',
+            body: `Preset "${data.preset.name}" loaded`,
+          });
+        }
+      } else if (filePath.endsWith('.slanalysis')) {
+        const data = await window.electron.loadAnalysis(filePath);
+        setFileInfo(data.fileInfo);
+        setCurrentMode('analysis');
+        
+        if (window.electron.showNotification) {
+          window.electron.showNotification({
+            title: 'Analysis Loaded',
+            body: `Analysis for "${data.sourceFile.name}" loaded`,
+          });
+        }
+      } else if (filePath.endsWith('.slreport')) {
+        const data = await window.electron.loadReport(filePath);
+        // For now, just show a notification. Could open a report viewer in the future.
+        alert(`Report loaded:\n${data.summary.completedItems} completed, ${data.summary.failedItems} failed\nSpace saved: ${(data.summary.spaceSaved / 1024 / 1024).toFixed(2)} MB`);
+      }
+    } catch (error) {
+      console.error('Failed to open file:', error);
+      alert(`Failed to open file: ${error.message}`);
+    }
+  };
+
 
   // Keyboard shortcuts
   useKeyboardShortcuts({
@@ -329,6 +407,292 @@ function App() {
     setQueue(prevQueue => prevQueue.filter(item => item.status !== QueueStatus.COMPLETED));
   };
 
+  const handleSaveQueue = async () => {
+    try {
+      const filePath = await window.electron.saveFileDialog({
+        title: 'Save Queue',
+        defaultPath: 'my-queue.slqueue',
+        filters: [
+          { name: 'Streamline Queue', extensions: ['slqueue'] },
+          { name: 'All Files', extensions: ['*'] }
+        ]
+      });
+
+      if (filePath) {
+        await window.electron.saveQueue(filePath, {
+          queue,
+          overwriteFiles,
+          maxConcurrentJobs,
+        });
+        
+        if (window.electron.showNotification) {
+          window.electron.showNotification({
+            title: 'Queue Saved',
+            body: `Queue saved to ${filePath}`,
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Failed to save queue:', error);
+      alert(`Failed to save queue: ${error.message}`);
+    }
+  };
+
+  const handleLoadQueue = async () => {
+    try {
+      const filePath = await window.electron.openFileDialog({
+        title: 'Load Queue',
+        filters: [
+          { name: 'Streamline Queue', extensions: ['slqueue'] },
+          { name: 'All Files', extensions: ['*'] }
+        ],
+        properties: ['openFile']
+      });
+
+      if (filePath) {
+        const data = await window.electron.loadQueue(filePath);
+        
+        // Verify files still exist
+        const validatedQueue = [];
+        for (const item of data.queue) {
+          const exists = await window.electron.checkFileExists(item.filePath);
+          if (exists) {
+            validatedQueue.push({
+              ...item,
+              file: {
+                name: item.fileName,
+                path: item.filePath,
+                size: item.fileSize,
+              },
+            });
+          }
+        }
+        
+        setQueue(validatedQueue);
+        setOverwriteFiles(data.settings.overwriteFiles ?? false);
+        setMaxConcurrentJobs(data.settings.maxConcurrentJobs ?? 1);
+        
+        if (window.electron.showNotification) {
+          window.electron.showNotification({
+            title: 'Queue Loaded',
+            body: `Loaded ${validatedQueue.length} items from queue`,
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load queue:', error);
+      alert(`Failed to load queue: ${error.message}`);
+    }
+  };
+
+  const handleExportReport = async () => {
+    try {
+      const completedItems = queue.filter(item => item.status === QueueStatus.COMPLETED);
+      const failedItems = queue.filter(item => item.status === QueueStatus.FAILED);
+      
+      const totalOriginalSize = queue.reduce((sum, item) => sum + (item.originalSize || 0), 0);
+      const totalCompressedSize = completedItems.reduce((sum, item) => sum + (item.compressedSize || 0), 0);
+      const spaceSaved = totalOriginalSize - totalCompressedSize;
+      const compressionRatio = totalOriginalSize > 0 ? (totalCompressedSize / totalOriginalSize) : 0;
+
+      const filePath = await window.electron.saveFileDialog({
+        title: 'Export Report',
+        defaultPath: `streamline-report-${new Date().toISOString().split('T')[0]}.slreport`,
+        filters: [
+          { name: 'Streamline Report', extensions: ['slreport'] },
+          { name: 'All Files', extensions: ['*'] }
+        ]
+      });
+
+      if (filePath) {
+        await window.electron.saveReport(filePath, {
+          reportType: 'queue',
+          totalItems: queue.length,
+          completedItems: completedItems.length,
+          failedItems: failedItems.length,
+          totalOriginalSize,
+          totalCompressedSize,
+          spaceSaved,
+          compressionRatio,
+          items: queue.map(item => ({
+            fileName: item.file.name,
+            filePath: item.file.path,
+            status: item.status,
+            preset: item.preset?.name || 'Custom',
+            originalSize: item.originalSize,
+            compressedSize: item.compressedSize,
+            savings: item.compressedSize ? ((item.originalSize - item.compressedSize) / item.originalSize * 100).toFixed(1) : null,
+            qualityMetrics: item.qualityMetrics,
+            error: item.error,
+          })),
+          settings: {
+            overwriteFiles,
+            outputDirectory,
+          },
+        });
+        
+        if (window.electron.showNotification) {
+          window.electron.showNotification({
+            title: 'Report Exported',
+            body: `Report exported to ${filePath}`,
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Failed to export report:', error);
+      alert(`Failed to export report: ${error.message}`);
+    }
+  };
+
+  const handleExportPreset = async () => {
+    if (!selectedPreset) {
+      alert('Please select a preset to export');
+      return;
+    }
+
+    try {
+      const filePath = await window.electron.saveFileDialog({
+        title: 'Export Preset',
+        defaultPath: `${selectedPreset.name.replace(/\s+/g, '-').toLowerCase()}.slpreset`,
+        filters: [
+          { name: 'Streamline Preset', extensions: ['slpreset'] },
+          { name: 'JSON', extensions: ['json'] },
+          { name: 'All Files', extensions: ['*'] }
+        ]
+      });
+
+      if (filePath) {
+        await window.electron.savePreset(filePath, {
+          ...selectedPreset,
+          settings: advancedSettings,
+        });
+        
+        if (window.electron.showNotification) {
+          window.electron.showNotification({
+            title: 'Preset Exported',
+            body: `Preset "${selectedPreset.name}" exported`,
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Failed to export preset:', error);
+      alert(`Failed to export preset: ${error.message}`);
+    }
+  };
+
+  const handleImportPreset = async () => {
+    try {
+      const filePath = await window.electron.openFileDialog({
+        title: 'Import Preset',
+        filters: [
+          { name: 'Streamline Preset', extensions: ['slpreset', 'json'] },
+          { name: 'All Files', extensions: ['*'] }
+        ],
+        properties: ['openFile']
+      });
+
+      if (filePath) {
+        const data = await window.electron.loadPreset(filePath);
+        
+        // Apply the loaded preset
+        setSelectedPreset(data.preset);
+        if (data.preset.settings) {
+          setAdvancedSettings(data.preset.settings);
+          setShowAdvanced(true);
+        }
+        
+        if (window.electron.showNotification) {
+          window.electron.showNotification({
+            title: 'Preset Imported',
+            body: `Preset "${data.preset.name}" imported`,
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Failed to import preset:', error);
+      alert(`Failed to import preset: ${error.message}`);
+    }
+  };
+
+  const handleExportAnalysis = async () => {
+    if (!files || files.length === 0 || !fileInfo) {
+      alert('Please select and analyze a file first');
+      return;
+    }
+
+    try {
+      const file = files[0];
+      const filePath = await window.electron.saveFileDialog({
+        title: 'Export Analysis',
+        defaultPath: `${file.name}-analysis.slanalysis`,
+        filters: [
+          { name: 'Streamline Analysis', extensions: ['slanalysis'] },
+          { name: 'All Files', extensions: ['*'] }
+        ]
+      });
+
+      if (filePath) {
+        await window.electron.saveAnalysis(filePath, {
+          fileName: file.name,
+          filePath: file.path,
+          fileSize: file.size,
+          fileInfo,
+          bitrateAnalysis: null, // Will be populated if available
+          sceneDetection: null,
+          contentAnalysis: null,
+          recommendations: null,
+          metadata: {
+            analyzedAt: new Date().toISOString(),
+            streamlineVersion: '0.5.0',
+          },
+        });
+        
+        if (window.electron.showNotification) {
+          window.electron.showNotification({
+            title: 'Analysis Exported',
+            body: `Analysis exported to ${filePath}`,
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Failed to export analysis:', error);
+      alert(`Failed to export analysis: ${error.message}`);
+    }
+  };
+
+  const handleImportAnalysis = async () => {
+    try {
+      const filePath = await window.electron.openFileDialog({
+        title: 'Import Analysis',
+        filters: [
+          { name: 'Streamline Analysis', extensions: ['slanalysis'] },
+          { name: 'All Files', extensions: ['*'] }
+        ],
+        properties: ['openFile']
+      });
+
+      if (filePath) {
+        const data = await window.electron.loadAnalysis(filePath);
+        
+        // Apply the loaded analysis
+        setFileInfo(data.fileInfo);
+        
+        if (window.electron.showNotification) {
+          window.electron.showNotification({
+            title: 'Analysis Imported',
+            body: `Analysis for "${data.sourceFile.name}" imported`,
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Failed to import analysis:', error);
+      alert(`Failed to import analysis: ${error.message}`);
+    }
+  };
+
+
+
+
   const getOutputPath = async (inputPath, preset, customSettings = {}) => {
     // Determine the output extension based on preset/custom settings
     const getOutputExtension = () => {
@@ -440,7 +804,12 @@ function App() {
       
       <main className="container mx-auto px-4 py-8">
         {currentMode === 'analysis' ? (
-          <AnalysisPanel files={files} fileInfo={fileInfo} />
+          <AnalysisPanel 
+            files={files} 
+            fileInfo={fileInfo}
+            onExportAnalysis={handleExportAnalysis}
+            onImportAnalysis={handleImportAnalysis}
+          />
         ) : currentMode === 'import' ? (
           /* Import Mode - Just drop zone and basic info */
           <div className="space-y-6">
@@ -461,6 +830,9 @@ function App() {
                 onClearCompleted={handleClearCompleted}
                 onStartBatch={handleEncode}
                 isProcessing={isProcessingBatch}
+                onSaveQueue={handleSaveQueue}
+                onLoadQueue={handleLoadQueue}
+                onExportReport={handleExportReport}
               />
             )}
           </div>
@@ -488,6 +860,9 @@ function App() {
                 onClearCompleted={handleClearCompleted}
                 onStartBatch={handleEncode}
                 isProcessing={isProcessingBatch}
+                onSaveQueue={handleSaveQueue}
+                onLoadQueue={handleLoadQueue}
+                onExportReport={handleExportReport}
               />
             )}
             
@@ -532,6 +907,8 @@ function App() {
               disabled={showAdvanced}
               presets={availablePresets}
               fileType={fileType}
+              onExportPreset={handleExportPreset}
+              onImportPreset={handleImportPreset}
             />
 
             <div className="card">

@@ -15,7 +15,9 @@ import {
   AudioIcon, 
   ImageIcon,
   CheckIcon,
-  WarningIcon
+  WarningIcon,
+  SaveIcon,
+  UploadIcon
 } from './icons/Icons';
 
 const PRESET_ICONS = {
@@ -45,7 +47,7 @@ const PRESET_ICONS = {
   'image-gif': ImageIcon,
 };
 
-function PresetSelector({ selectedPreset, onPresetSelect, disabled, presets, fileType }) {
+function PresetSelector({ selectedPreset, onPresetSelect, disabled, presets, fileType, onExportPreset, onImportPreset }) {
   const { settings } = useSettings();
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
@@ -151,22 +153,59 @@ function PresetSelector({ selectedPreset, onPresetSelect, disabled, presets, fil
     <div className="card">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl font-semibold">Encoding Presets</h2>
-        <button
-          onClick={() => setShowRepoManager(true)}
-          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-            settings.theme === 'dark'
-              ? 'bg-surface-elevated2 hover:bg-surface-elevated3 text-gray-300'
-              : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-          }`}
-          title="Manage preset repositories"
-        >
-          <span className="flex items-center space-x-1">
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-            </svg>
-            <span>Repositories</span>
-          </span>
-        </button>
+        <div className="flex items-center space-x-2">
+          {onImportPreset && (
+            <button
+              onClick={onImportPreset}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                settings.theme === 'dark'
+                  ? 'bg-surface-elevated2 hover:bg-surface-elevated3 text-gray-300'
+                  : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+              }`}
+              title="Import preset from .slpreset file"
+            >
+              <span className="flex items-center space-x-1">
+                <UploadIcon className="w-4 h-4" />
+                <span>Import</span>
+              </span>
+            </button>
+          )}
+          {onExportPreset && (
+            <button
+              onClick={onExportPreset}
+              disabled={!selectedPreset}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                !selectedPreset ? 'opacity-50 cursor-not-allowed' : ''
+              } ${
+                settings.theme === 'dark'
+                  ? 'bg-surface-elevated2 hover:bg-surface-elevated3 text-gray-300'
+                  : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+              }`}
+              title="Export selected preset to .slpreset file"
+            >
+              <span className="flex items-center space-x-1">
+                <SaveIcon className="w-4 h-4" />
+                <span>Export</span>
+              </span>
+            </button>
+          )}
+          <button
+            onClick={() => setShowRepoManager(true)}
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+              settings.theme === 'dark'
+                ? 'bg-surface-elevated2 hover:bg-surface-elevated3 text-gray-300'
+                : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+            }`}
+            title="Manage preset repositories"
+          >
+            <span className="flex items-center space-x-1">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              </svg>
+              <span>Repositories</span>
+            </span>
+          </button>
+        </div>
       </div>
       
       {/* Search Bar */}

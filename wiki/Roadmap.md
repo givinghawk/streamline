@@ -2,9 +2,19 @@
 
 This roadmap outlines planned features and improvements for Streamline. The timeline and priorities may change based on community feedback and development capacity.
 
-## Current Version: 0.3.0
+## Current Version: 0.5.0
 
 See [CHANGELOG.md](../CHANGELOG.md) for details on current release.
+
+## Recently Completed (v0.5.0)
+
+**File Format Support** ✅
+- [x] **Custom file extensions** - .slqueue, .slpreset, .slanalysis, .slreport
+- [x] **Queue save/load** - Save and resume batch jobs
+- [x] **Preset export/import** - Share custom presets
+- [x] **Analysis export/import** - Share video analysis data
+- [x] **Report generation** - Export encoding reports
+- [x] **File associations** - Double-click to open in Streamline
 
 ## Short Term (Next 3-6 Months)
 
@@ -49,7 +59,7 @@ See [CHANGELOG.md](../CHANGELOG.md) for details on current release.
 
 **Batch Enhancements**
 - [ ] **Queue reordering** - Drag-and-drop queue management
-- [ ] **Queue profiles** - Save and load queue configurations
+- [x] **Queue profiles** - Save and load queue configurations (.slqueue files) (v0.5.0)
 - [ ] **Conditional encoding** - Skip files that meet criteria
 - [ ] **Auto-retry on failure** - Retry failed encodes with adjusted settings
 - [ ] **Parallel encoding** - Multiple files simultaneously (with limits)
@@ -144,7 +154,7 @@ Features requested by the community, under consideration:
 - [ ] **Language support** - Internationalization
 - [ ] **Statistics dashboard** - Encoding statistics and history
 - [ ] **Comparison mode improvements** - More comparison tools
-- [ ] **Export queue** - Save queue for later
+- [x] **Export queue** - Save queue for later (.slqueue files) (v0.5.0)
 
 ### Under Consideration
 - [ ] **Format conversion** - More format conversion options

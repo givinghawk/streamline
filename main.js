@@ -89,8 +89,35 @@ app.on('window-all-closed', () => {
   }
 });
 
+// Handle file opening on Windows/Linux (when file is double-clicked)
+app.on('open-file', (event, filePath) => {
+  event.preventDefault();
+  if (mainWindow) {
+    mainWindow.webContents.send('file-opened', filePath);
+  }
+});
+
+// Handle command line arguments (Windows)
+const fileArg = process.argv.find(arg => 
+  arg.endsWith('.slqueue') || 
+  arg.endsWith('.slpreset') || 
+  arg.endsWith('.slanalysis') || 
+  arg.endsWith('.slreport')
+);
+
+if (fileArg && !isDev) {
+  app.whenReady().then(() => {
+    setTimeout(() => {
+      if (mainWindow) {
+        mainWindow.webContents.send('file-opened', fileArg);
+      }
+    }, 1000);
+  });
+}
+
+
 // IPC Handlers
-let ffmpegHandler, thumbnailHandler, analysisHandler;
+let ffmpegHandler, thumbnailHandler, analysisHandler, fileFormatsHandler;
 
 try {
   ffmpegHandler = require('./src/electron/ffmpeg');
@@ -114,6 +141,14 @@ try {
 } catch (error) {
   console.error('✗ Failed to load analysis handler:', error);
   analysisHandler = null;
+}
+
+try {
+  fileFormatsHandler = require('./src/electron/fileFormats');
+  console.log('✓ File formats handler loaded successfully');
+} catch (error) {
+  console.error('✗ Failed to load file formats handler:', error);
+  fileFormatsHandler = null;
 }
 
 ipcMain.handle('get-file-info', async (event, filePath) => {
@@ -431,5 +466,74 @@ ipcMain.handle('open-external', async (event, url) => {
     console.error('Error opening external URL:', error);
     return false;
   }
+});
+
+// File format handlers for custom extensions
+ipcMain.handle('save-queue', async (event, filePath, queueData) => {
+  if (!fileFormatsHandler) {
+    throw new Error('File formats handler not loaded');
+  }
+  return await fileFormatsHandler.saveQueue(filePath, queueData);
+});
+
+ipcMain.handle('load-queue', async (event, filePath) => {
+  if (!fileFormatsHandler) {
+    throw new Error('File formats handler not loaded');
+  }
+  return await fileFormatsHandler.loadQueue(filePath);
+});
+
+ipcMain.handle('save-preset', async (event, filePath, presetData) => {
+  if (!fileFormatsHandler) {
+    throw new Error('File formats handler not loaded');
+  }
+  return await fileFormatsHandler.savePreset(filePath, presetData);
+});
+
+ipcMain.handle('load-preset', async (event, filePath) => {
+  if (!fileFormatsHandler) {
+    throw new Error('File formats handler not loaded');
+  }
+  return await fileFormatsHandler.loadPreset(filePath);
+});
+
+ipcMain.handle('save-analysis', async (event, filePath, analysisData) => {
+  if (!fileFormatsHandler) {
+    throw new Error('File formats handler not loaded');
+  }
+  return await fileFormatsHandler.saveAnalysis(filePath, analysisData);
+});
+
+ipcMain.handle('load-analysis', async (event, filePath) => {
+  if (!fileFormatsHandler) {
+    throw new Error('File formats handler not loaded');
+  }
+  return await fileFormatsHandler.loadAnalysis(filePath);
+});
+
+ipcMain.handle('save-report', async (event, filePath, reportData) => {
+  if (!fileFormatsHandler) {
+    throw new Error('File formats handler not loaded');
+  }
+  return await fileFormatsHandler.saveReport(filePath, reportData);
+});
+
+ipcMain.handle('load-report', async (event, filePath) => {
+  if (!fileFormatsHandler) {
+    throw new Error('File formats handler not loaded');
+  }
+  return await fileFormatsHandler.loadReport(filePath);
+});
+
+// Save file dialog with custom filter
+ipcMain.handle('save-file-dialog', async (event, options) => {
+  const result = await dialog.showSaveDialog(mainWindow, options);
+  return result.canceled ? null : result.filePath;
+});
+
+// Open file dialog with custom filter
+ipcMain.handle('open-file-dialog', async (event, options) => {
+  const result = await dialog.showOpenDialog(mainWindow, options);
+  return result.canceled ? null : result.filePaths[0];
 });
 

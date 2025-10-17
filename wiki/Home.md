@@ -23,6 +23,7 @@ Welcome to the Streamline documentation! Streamline is a powerful desktop applic
 - **[Custom Presets](Custom-Presets.md)** - Creating and managing custom presets
 - **[Preset Repositories](PresetRepositories.md)** - Download presets from GitHub
 - **[Advanced Presets](AdvancedPresets.md)** - Conditional logic for intelligent encoding
+- **[File Formats](File-Formats.md)** - Custom file formats for queues, presets, analysis, and reports
 - **[HDR Encoding](HDREncoding.md)** - HDR10, HDR10+, and Dolby Vision support
 - **[Target File Size](Target-File-Size.md)** - Auto-calculate bitrate for target size
 - **[Thumbnail Generation](Thumbnail-Generation.md)** - Video preview thumbnails
@@ -50,6 +51,7 @@ Streamline is designed to make video and audio encoding accessible to everyone, 
 - **Quality Analysis** - Measure encoding quality with industry-standard metrics
 - **Video Comparison** - Compare original and encoded videos side-by-side
 - **Flexible Presets** - Choose from built-in presets or create your own
+- **Custom File Formats** - Save and share queues, presets, analysis, and reports
 - **Modern UI** - Clean, responsive interface with dark and light themes
 - **Cross-Platform** - Works on Windows, macOS, and Linux
 
