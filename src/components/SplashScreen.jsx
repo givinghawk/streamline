@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { GpuIcon, CheckIcon, SparklesIcon } from './icons/Icons';
+import TitleBar from './TitleBar';
 import packageJson from '../../package.json';
 
 function SplashScreen({ onComplete }) {
@@ -7,10 +8,27 @@ function SplashScreen({ onComplete }) {
   const [progress, setProgress] = useState(0);
   const [hardwareInfo, setHardwareInfo] = useState([]);
   const [ffmpegError, setFfmpegError] = useState(null);
+  const [platform, setPlatform] = useState(null);
+  const [isInstalling, setIsInstalling] = useState(false);
+  const [installStatus, setInstallStatus] = useState('');
+  const [installError, setInstallError] = useState(null);
 
   useEffect(() => {
     detectHardware();
+    detectPlatform();
   }, []);
+
+  const detectPlatform = async () => {
+    try {
+      if (window.electron && window.electron.getPlatform) {
+        const detectedPlatform = await window.electron.getPlatform();
+        setPlatform(detectedPlatform);
+      }
+    } catch (error) {
+      console.error('Failed to detect platform:', error);
+      setPlatform('unknown');
+    }
+  };
 
   const detectHardware = async () => {
     // Step 1: Starting
@@ -132,79 +150,177 @@ function SplashScreen({ onComplete }) {
 
   const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
+  const handleAutoInstall = async () => {
+    setIsInstalling(true);
+    setInstallStatus('Starting installation...');
+    setInstallError(null);
+
+    try {
+      const result = await window.electron.installFFmpeg();
+      
+      if (result.success) {
+        setInstallStatus('Installation successful! Checking FFmpeg...');
+        await delay(1000);
+        
+        // Reset error state and re-run detection
+        setFfmpegError(null);
+        setIsInstalling(false);
+        setInstallStatus('');
+        setProgress(0);
+        setStatus('Initializing...');
+        detectHardware();
+      } else {
+        setInstallError(result.error || 'Installation failed');
+        setIsInstalling(false);
+      }
+    } catch (error) {
+      console.error('Installation error:', error);
+      setInstallError(error.message || 'Failed to install FFmpeg');
+      setIsInstalling(false);
+    }
+  };
+
+  // Memoize platform checks to avoid recalculating on every render
+  const platformChecks = useMemo(() => ({
+    isWindows: platform === 'win32',
+    isMac: platform === 'darwin',
+    isLinux: platform === 'linux',
+  }), [platform]);
+
   // If FFmpeg is not found, show error message with installation instructions
   if (ffmpegError) {
+    const { isWindows, isMac, isLinux } = platformChecks;
+    
     return (
-      <div className="fixed inset-0 bg-surface z-50 flex items-center justify-center">
-        <div className="max-w-2xl w-full px-8">
-          {/* Logo/Icon with error state */}
-          <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-20 h-20 bg-red-600 rounded-2xl shadow-material-lg mb-4">
-              <AlertIcon className="w-12 h-12 text-white" />
+      <div className="fixed inset-0 bg-surface z-50 flex flex-col">
+        <TitleBar />
+        <div className="flex-1 overflow-y-auto pt-8">
+          <div className="max-w-2xl w-full px-8 mx-auto py-8">
+            {/* Logo/Icon with error state */}
+            <div className="text-center mb-8">
+              <div className="inline-flex items-center justify-center w-20 h-20 bg-red-600 rounded-2xl shadow-material-lg mb-4">
+                <AlertIcon className="w-12 h-12 text-white" />
+              </div>
+              <h1 className="text-3xl font-bold mb-2 text-red-500">FFmpeg Not Found</h1>
+              <p className="text-gray-400">Required components are missing</p>
             </div>
-            <h1 className="text-3xl font-bold mb-2 text-red-500">FFmpeg Not Found</h1>
-            <p className="text-gray-400">Required components are missing</p>
-          </div>
 
-          {/* Error Details */}
-          <div className="bg-surface-elevated rounded-lg p-6 mb-6">
-            <h2 className="text-xl font-semibold mb-4 flex items-center">
-              <AlertIcon className="w-6 h-6 text-red-500 mr-2" />
-              Missing Components
-            </h2>
-            <ul className="space-y-2 mb-4">
-              {ffmpegError.missing.map((component, index) => (
-                <li key={index} className="flex items-center text-gray-300">
-                  <span className="w-2 h-2 bg-red-500 rounded-full mr-3"></span>
-                  {component}
-                </li>
-              ))}
-            </ul>
-            <p className="text-gray-400 text-sm">
-              {ffmpegError.message}
-            </p>
-          </div>
+            {/* Error Details */}
+            <div className="bg-surface-elevated rounded-lg p-6 mb-6">
+              <h2 className="text-xl font-semibold mb-4 flex items-center">
+                <AlertIcon className="w-6 h-6 text-red-500 mr-2" />
+                Missing Components
+              </h2>
+              <ul className="space-y-2 mb-4">
+                {ffmpegError.missing.map((component, index) => (
+                  <li key={index} className="flex items-center text-gray-300">
+                    <span className="w-2 h-2 bg-red-500 rounded-full mr-3"></span>
+                    {component}
+                  </li>
+                ))}
+              </ul>
+              <p className="text-gray-400 text-sm">
+                {ffmpegError.message}
+              </p>
+            </div>
 
-          {/* Installation Instructions */}
-          <div className="bg-surface-elevated rounded-lg p-6 mb-6">
-            <h2 className="text-xl font-semibold mb-4">Installation Instructions</h2>
-            <div className="space-y-4">
-              <div>
-                <h3 className="font-semibold text-primary-400 mb-2">Windows</h3>
-                <ol className="list-decimal list-inside space-y-1 text-sm text-gray-300">
-                  <li>Download FFmpeg from <a href="https://ffmpeg.org/download.html" className="text-primary-400 hover:text-primary-300 underline" onClick={(e) => { e.preventDefault(); window.electron?.openExternal('https://ffmpeg.org/download.html'); }}>ffmpeg.org</a></li>
-                  <li>Extract the archive and add the bin folder to your system PATH</li>
-                  <li>Restart Streamline</li>
-                </ol>
-              </div>
-              <div>
-                <h3 className="font-semibold text-primary-400 mb-2">macOS</h3>
-                <p className="text-sm text-gray-300 mb-1">Using Homebrew:</p>
-                <code className="block bg-surface-elevated2 p-2 rounded text-xs text-green-400">brew install ffmpeg</code>
-              </div>
-              <div>
-                <h3 className="font-semibold text-primary-400 mb-2">Linux</h3>
-                <p className="text-sm text-gray-300 mb-1">Using apt (Ubuntu/Debian):</p>
-                <code className="block bg-surface-elevated2 p-2 rounded text-xs text-green-400 mb-2">sudo apt install ffmpeg</code>
-                <p className="text-sm text-gray-300 mb-1">Using dnf (Fedora):</p>
-                <code className="block bg-surface-elevated2 p-2 rounded text-xs text-green-400">sudo dnf install ffmpeg</code>
+            {/* Installation Instructions */}
+            <div className="bg-surface-elevated rounded-lg p-6 mb-6">
+              <h2 className="text-xl font-semibold mb-4">Installation Instructions</h2>
+              <div className="space-y-4">
+                {/* Windows Instructions */}
+                <div className={`${isWindows ? 'ring-2 ring-primary-500 bg-surface-elevated2' : ''} rounded-lg p-4 transition-all`}>
+                  <h3 className={`font-semibold mb-2 flex items-center ${isWindows ? 'text-primary-300' : 'text-primary-400'}`}>
+                    Windows
+                    {isWindows && <span className="ml-2 text-xs bg-primary-600 text-white px-2 py-0.5 rounded">Your Platform</span>}
+                  </h3>
+                  <ol className="list-decimal list-inside space-y-1 text-sm text-gray-300">
+                    <li>Download FFmpeg from <a href="https://ffmpeg.org/download.html" className="text-primary-400 hover:text-primary-300 underline" onClick={(e) => { e.preventDefault(); window.electron?.openExternal('https://ffmpeg.org/download.html'); }}>ffmpeg.org</a></li>
+                    <li>Extract the archive and add the bin folder to your system PATH</li>
+                    <li>Restart Streamline</li>
+                  </ol>
+                </div>
+
+                {/* macOS Instructions */}
+                <div className={`${isMac ? 'ring-2 ring-primary-500 bg-surface-elevated2' : ''} rounded-lg p-4 transition-all`}>
+                  <h3 className={`font-semibold mb-2 flex items-center ${isMac ? 'text-primary-300' : 'text-primary-400'}`}>
+                    macOS
+                    {isMac && <span className="ml-2 text-xs bg-primary-600 text-white px-2 py-0.5 rounded">Your Platform</span>}
+                  </h3>
+                  <p className="text-sm text-gray-300 mb-1">Using Homebrew:</p>
+                  <code className="block bg-surface-elevated2 p-2 rounded text-xs text-green-400">brew install ffmpeg</code>
+                </div>
+
+                {/* Linux Instructions */}
+                <div className={`${isLinux ? 'ring-2 ring-primary-500 bg-surface-elevated2' : ''} rounded-lg p-4 transition-all`}>
+                  <h3 className={`font-semibold mb-2 flex items-center ${isLinux ? 'text-primary-300' : 'text-primary-400'}`}>
+                    Linux
+                    {isLinux && <span className="ml-2 text-xs bg-primary-600 text-white px-2 py-0.5 rounded">Your Platform</span>}
+                  </h3>
+                  <p className="text-sm text-gray-300 mb-1">Using apt (Ubuntu/Debian):</p>
+                  <code className="block bg-surface-elevated2 p-2 rounded text-xs text-green-400 mb-2">sudo apt install ffmpeg</code>
+                  <p className="text-sm text-gray-300 mb-1">Using dnf (Fedora):</p>
+                  <code className="block bg-surface-elevated2 p-2 rounded text-xs text-green-400">sudo dnf install ffmpeg</code>
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Retry Button */}
-          <button
-            onClick={() => {
-              // Reset state and re-run the full initialization process
-              setFfmpegError(null);
-              setProgress(0);
-              setStatus('Initializing...');
-              detectHardware();
-            }}
-            className="w-full bg-primary-600 hover:bg-primary-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
-          >
-            Check Again
-          </button>
+            {/* Auto Install Section */}
+            {(isWindows || isMac || isLinux) && (
+              <div className="bg-surface-elevated rounded-lg p-6 mb-6">
+                <h2 className="text-xl font-semibold mb-4 flex items-center">
+                  <SparklesIcon className="w-6 h-6 text-primary-400 mr-2" />
+                  Automatic Installation
+                </h2>
+                <p className="text-gray-400 text-sm mb-4">
+                  {isWindows && 'Streamline can attempt to install FFmpeg using winget (Windows Package Manager).'}
+                  {isMac && 'Streamline can attempt to install FFmpeg using Homebrew. Make sure Homebrew is installed first.'}
+                  {isLinux && 'Streamline can attempt to install FFmpeg using your system package manager (apt, dnf, or pacman).'}
+                </p>
+                
+                {isInstalling && (
+                  <div className="mb-4">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <div className="w-4 h-4 border-2 border-primary-600 border-t-transparent rounded-full animate-spin"></div>
+                      <span className="text-sm text-gray-300">{installStatus}</span>
+                    </div>
+                  </div>
+                )}
+                
+                {installError && (
+                  <div className="mb-4 p-3 bg-red-900/20 border border-red-500 rounded-lg">
+                    <p className="text-sm text-red-400">{installError}</p>
+                    <p className="text-xs text-gray-400 mt-2">Please try manual installation using the instructions above.</p>
+                  </div>
+                )}
+                
+                <button
+                  onClick={handleAutoInstall}
+                  disabled={isInstalling}
+                  className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-lg transition-colors flex items-center justify-center space-x-2"
+                >
+                  <SparklesIcon className="w-5 h-5" />
+                  <span>{isInstalling ? 'Installing...' : 'Auto-Install FFmpeg'}</span>
+                </button>
+              </div>
+            )}
+
+            {/* Manual Check Button */}
+            <button
+              onClick={() => {
+                // Reset state and re-run the full initialization process
+                setFfmpegError(null);
+                setInstallError(null);
+                setProgress(0);
+                setStatus('Initializing...');
+                detectHardware();
+              }}
+              disabled={isInstalling}
+              className="w-full bg-primary-600 hover:bg-primary-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-lg transition-colors"
+            >
+              Check Again
+            </button>
+          </div>
         </div>
       </div>
     );

@@ -3,6 +3,10 @@ const path = require('path');
 const fs = require('fs').promises;
 const fsSync = require('fs');
 const https = require('https');
+const { exec, spawn } = require('child_process');
+const { promisify } = require('util');
+
+const execAsync = promisify(exec);
 
 let mainWindow;
 let appSettings = {};
@@ -283,6 +287,121 @@ ipcMain.handle('window-close', () => {
 
 ipcMain.handle('window-is-maximized', () => {
   return mainWindow ? mainWindow.isMaximized() : false;
+});
+
+// Platform detection handler
+ipcMain.handle('get-platform', () => {
+  return process.platform;
+});
+
+// FFmpeg installer handler
+ipcMain.handle('install-ffmpeg', async () => {
+  const platform = process.platform;
+  
+  try {
+    let command = '';
+    let installMethod = '';
+    
+    if (platform === 'win32') {
+      // Windows: Try winget first, then chocolatey
+      try {
+        // Check if winget is available
+        await execAsync('winget --version');
+        command = 'winget install -e --id Gyan.FFmpeg --accept-package-agreements --accept-source-agreements';
+        installMethod = 'winget';
+      } catch (wingetError) {
+        // Try chocolatey as fallback
+        try {
+          await execAsync('choco --version');
+          command = 'choco install ffmpeg -y';
+          installMethod = 'chocolatey';
+        } catch (chocoError) {
+          return {
+            success: false,
+            error: 'Neither winget nor chocolatey found. Please install FFmpeg manually or install winget/chocolatey first.'
+          };
+        }
+      }
+    } else if (platform === 'darwin') {
+      // macOS: Use Homebrew
+      try {
+        await execAsync('brew --version');
+        command = 'brew install ffmpeg';
+        installMethod = 'homebrew';
+      } catch (brewError) {
+        return {
+          success: false,
+          error: 'Homebrew not found. Please install Homebrew first: https://brew.sh'
+        };
+      }
+    } else if (platform === 'linux') {
+      // Linux: Try apt, dnf, then pacman
+      try {
+        await execAsync('which apt-get');
+        command = 'pkexec apt-get install -y ffmpeg';
+        installMethod = 'apt';
+      } catch (aptError) {
+        try {
+          await execAsync('which dnf');
+          command = 'pkexec dnf install -y ffmpeg';
+          installMethod = 'dnf';
+        } catch (dnfError) {
+          try {
+            await execAsync('which pacman');
+            command = 'pkexec pacman -S --noconfirm ffmpeg';
+            installMethod = 'pacman';
+          } catch (pacmanError) {
+            return {
+              success: false,
+              error: 'No supported package manager found (apt, dnf, or pacman).'
+            };
+          }
+        }
+      }
+    } else {
+      return {
+        success: false,
+        error: `Unsupported platform: ${platform}`
+      };
+    }
+    
+    console.log(`Installing FFmpeg using ${installMethod}: ${command}`);
+    
+    // Execute the installation command
+    // For Linux, we need to use pkexec which will prompt for password
+    // For Windows/macOS, the commands may require elevation
+    const { stdout, stderr } = await execAsync(command, {
+      timeout: 300000, // 5 minutes timeout
+      maxBuffer: 10 * 1024 * 1024 // 10MB buffer
+    });
+    
+    console.log('Installation output:', stdout);
+    if (stderr) {
+      console.log('Installation stderr:', stderr);
+    }
+    
+    // Verify installation
+    try {
+      await execAsync('ffmpeg -version');
+      return {
+        success: true,
+        method: installMethod,
+        message: 'FFmpeg installed successfully!'
+      };
+    } catch (verifyError) {
+      return {
+        success: false,
+        error: 'Installation completed but FFmpeg is not in PATH. You may need to restart your system.'
+      };
+    }
+    
+  } catch (error) {
+    console.error('FFmpeg installation error:', error);
+    return {
+      success: false,
+      error: error.message || 'Installation failed. Please try manual installation.'
+    };
+  }
 });
 
 // File stats handler for getting file sizes
