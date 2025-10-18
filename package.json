@@ -78,14 +78,21 @@
     "win": {
       "target": [
         "nsis",
-        "msi"
+        "msi",
+        "portable"
       ]
     },
     "mac": {
-      "target": "dmg"
+      "target": [
+        "dmg",
+        "zip"
+      ]
     },
     "linux": {
-      "target": "AppImage"
+      "target": [
+        "AppImage",
+        "tar.gz"
+      ]
     }
   }
 }
