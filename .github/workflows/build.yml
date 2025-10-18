@@ -26,6 +26,9 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
+      - name: Install dependencies
+        run: npm ci
+
       - name: Set version for beta release
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
         shell: pwsh
@@ -34,23 +37,15 @@ jobs:
           $packageJson = Get-Content package.json -Raw | ConvertFrom-Json
           $baseVersion = $packageJson.version
           $version = "$baseVersion-beta.$sha"
-          echo "BUILD_VERSION=$version" >> $env:GITHUB_ENV
-          Write-Host "Build version will be: $version"
-
-      - name: Install dependencies
-        run: npm ci
+          $packageJson.version = $version
+          $packageJson | ConvertTo-Json -Depth 100 | Set-Content package.json
+          Write-Host "Updated version to: $version"
 
       - name: Build application
         run: npm run build
 
       - name: Package application
-        run: |
-          if ($env:BUILD_VERSION) {
-            electron-builder --publish never --config.extraMetadata.version=$env:BUILD_VERSION
-          } else {
-            npm run package
-          }
-        shell: pwsh
+        run: npm run package
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -80,28 +75,24 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
+      - name: Install dependencies
+        run: npm ci
+
       - name: Set version for beta release
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
         run: |
           SHA_SHORT=$(echo ${{ github.sha }} | cut -c1-7)
           BASE_VERSION=$(jq -r '.version' package.json)
           VERSION="$BASE_VERSION-beta.$SHA_SHORT"
-          echo "BUILD_VERSION=$VERSION" >> $GITHUB_ENV
-          echo "Build version will be: $VERSION"
-
-      - name: Install dependencies
-        run: npm ci
+          jq --arg version "$VERSION" '.version = $version' package.json > package.json.tmp
+          mv package.json.tmp package.json
+          echo "Updated version to: $VERSION"
 
       - name: Build application
         run: npm run build
 
       - name: Package application
-        run: |
-          if [ -n "$BUILD_VERSION" ]; then
-            npx electron-builder --publish never --config.extraMetadata.version=$BUILD_VERSION
-          else
-            npm run package
-          fi
+        run: npm run package
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -130,28 +121,24 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
+      - name: Install dependencies
+        run: npm ci
+
       - name: Set version for beta release
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
         run: |
           SHA_SHORT=$(echo ${{ github.sha }} | cut -c1-7)
           BASE_VERSION=$(jq -r '.version' package.json)
           VERSION="$BASE_VERSION-beta.$SHA_SHORT"
-          echo "BUILD_VERSION=$VERSION" >> $GITHUB_ENV
-          echo "Build version will be: $VERSION"
-
-      - name: Install dependencies
-        run: npm ci
+          jq --arg version "$VERSION" '.version = $version' package.json > package.json.tmp
+          mv package.json.tmp package.json
+          echo "Updated version to: $VERSION"
 
       - name: Build application
         run: npm run build
 
       - name: Package application
-        run: |
-          if [ -n "$BUILD_VERSION" ]; then
-            npx electron-builder --publish never --config.extraMetadata.version=$BUILD_VERSION
-          else
-            npm run package
-          fi
+        run: npm run package
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
