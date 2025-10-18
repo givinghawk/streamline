@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { PRESETS } from '../constants/presets';
 import { getDownloadedPresets } from '../utils/presetRepository';
 
@@ -41,6 +41,7 @@ export const SettingsProvider = ({ children }) => {
   });
 
   const [customPresets, setCustomPresets] = useState([]);
+  const settingsLoaded = useRef(false);
 
   // Load settings from localStorage on mount
   useEffect(() => {
@@ -48,7 +49,6 @@ export const SettingsProvider = ({ children }) => {
       try {
         const savedSettings = await window.electron.getSetting('appSettings');
         const savedPresets = await window.electron.getSetting('customPresets');
-        
         if (savedSettings) {
           setSettings(savedSettings);
         }
@@ -57,14 +57,16 @@ export const SettingsProvider = ({ children }) => {
         }
       } catch (error) {
         console.error('Error loading settings:', error);
+      } finally {
+        settingsLoaded.current = true;
       }
     };
-    
     loadSettings();
   }, []);
 
   // Save settings whenever they change
   useEffect(() => {
+    if (!settingsLoaded.current) return;
     const saveSettings = async () => {
       try {
         await window.electron.setSetting('appSettings', settings);
@@ -72,7 +74,6 @@ export const SettingsProvider = ({ children }) => {
         console.error('Error saving settings:', error);
       }
     };
-    
     saveSettings();
   }, [settings]);
 
