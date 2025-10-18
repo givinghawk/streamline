@@ -29,6 +29,7 @@ jobs:
         run: |
           npm install --include=optional
           npm install --no-save @rollup/rollup-win32-x64-msvc
+          npm install --no-save app-builder-bin-win32-x64 --optional
 
       - name: Build application
         run: npm run build
@@ -66,6 +67,8 @@ jobs:
         run: |
           npm install --include=optional
           npm install --no-save @rollup/rollup-darwin-arm64
+          npm install --no-save dmg-license
+          npm install --no-save app-builder-bin-darwin-x64 --optional
 
       - name: Build application
         run: npm run build
@@ -103,6 +106,7 @@ jobs:
         run: |
           npm install --include=optional
           npm install --no-save @rollup/rollup-linux-x64-gnu
+          npm install --no-save app-builder-bin-linux-x64 --optional
 
       - name: Build application
         run: npm run build
@@ -122,8 +126,6 @@ jobs:
           path: |
             release/*.AppImage
             release/*.tar.gz
-            release/*.deb
-            release/*.rpm
           retention-days: 30
           if-no-files-found: warn
 
