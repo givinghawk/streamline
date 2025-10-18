@@ -29,18 +29,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Set version for beta release
-        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
-        shell: pwsh
-        run: |
-          $sha = "${{ github.sha }}".Substring(0, 7)
-          $packageJson = Get-Content package.json -Raw | ConvertFrom-Json
-          $baseVersion = $packageJson.version
-          $version = "$baseVersion-beta.$sha"
-          $packageJson.version = $version
-          $packageJson | ConvertTo-Json -Depth 100 | Set-Content package.json
-          Write-Host "Updated version to: $version"
-
       - name: Build application
         run: npm run build
 
@@ -78,16 +66,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Set version for beta release
-        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
-        run: |
-          SHA_SHORT=$(echo ${{ github.sha }} | cut -c1-7)
-          BASE_VERSION=$(jq -r '.version' package.json)
-          VERSION="$BASE_VERSION-beta.$SHA_SHORT"
-          jq --arg version "$VERSION" '.version = $version' package.json > package.json.tmp
-          mv package.json.tmp package.json
-          echo "Updated version to: $VERSION"
-
       - name: Build application
         run: npm run build
 
@@ -123,16 +101,6 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
-
-      - name: Set version for beta release
-        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
-        run: |
-          SHA_SHORT=$(echo ${{ github.sha }} | cut -c1-7)
-          BASE_VERSION=$(jq -r '.version' package.json)
-          VERSION="$BASE_VERSION-beta.$SHA_SHORT"
-          jq --arg version "$VERSION" '.version = $version' package.json > package.json.tmp
-          mv package.json.tmp package.json
-          echo "Updated version to: $VERSION"
 
       - name: Build application
         run: npm run build
