@@ -847,9 +847,9 @@ function App() {
           </div>
         ) : (
           /* Encode Mode - Full encoding interface */
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left Column - Selected Files & Queue */}
-          <div className="lg:col-span-2 space-y-6">
+        <div className="space-y-6 max-w-4xl mx-auto">
+          {/* Files & Queue */}
+          <div className="space-y-6">
             {fileInfo && (
               <BasicFileInfo 
                 fileInfo={fileInfo} 
@@ -901,7 +901,7 @@ function App() {
             )}
           </div>
 
-          {/* Right Column - Settings */}
+          {/* Settings */}
           <div className="space-y-6">
             <OutputSettings 
               outputDirectory={outputDirectory}
