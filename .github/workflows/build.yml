@@ -27,6 +27,8 @@ jobs:
 
       - name: Install dependencies
         run: |
+          Remove-Item -Path "package-lock.json" -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "node_modules" -Recurse -Force -ErrorAction SilentlyContinue
           npm install --include=optional
           npm install --no-save @rollup/rollup-win32-x64-msvc
 
@@ -64,6 +66,8 @@ jobs:
 
       - name: Install dependencies
         run: |
+          rm -f package-lock.json
+          rm -rf node_modules
           npm install --include=optional
           npm install --no-save @rollup/rollup-darwin-arm64
           npm install --no-save dmg-license
@@ -102,6 +106,8 @@ jobs:
 
       - name: Install dependencies
         run: |
+          rm -f package-lock.json
+          rm -rf node_modules
           npm install --include=optional
           npm install --no-save @rollup/rollup-linux-x64-gnu
 
