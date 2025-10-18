@@ -18,7 +18,7 @@
     "optimization",
     "electron"
   ],
-  "author": "",
+  "author": "Streamline Development Team",
   "license": "MIT",
   "devDependencies": {
     "@vitejs/plugin-react": "^4.2.1",
@@ -76,13 +76,22 @@
       }
     ],
     "win": {
-      "target": "nsis"
+      "target": [
+        "nsis",
+        "portable"
+      ]
     },
     "mac": {
-      "target": "dmg"
+      "target": [
+        "dmg",
+        "zip"
+      ]
     },
     "linux": {
-      "target": "AppImage"
+      "target": [
+        "AppImage",
+        "tar.gz"
+      ]
     }
   }
 }
