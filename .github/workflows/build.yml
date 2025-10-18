@@ -48,7 +48,6 @@ jobs:
           name: windows-build
           path: |
             release/*.exe
-            release/*.msi
           retention-days: 30
           if-no-files-found: warn
 
@@ -66,7 +65,7 @@ jobs:
       - name: Install dependencies
         run: |
           npm install --include=optional
-          npm install --no-save @rollup/rollup-darwin-arm64 @rollup/rollup-darwin-x64
+          npm install --no-save @rollup/rollup-darwin-arm64
 
       - name: Build application
         run: npm run build
@@ -103,7 +102,7 @@ jobs:
       - name: Install dependencies
         run: |
           npm install --include=optional
-          npm install --no-save @rollup/rollup-linux-x64-gnu @rollup/rollup-linux-arm64-gnu
+          npm install --no-save @rollup/rollup-linux-x64-gnu
 
       - name: Build application
         run: npm run build
