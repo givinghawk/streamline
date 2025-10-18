@@ -46,7 +46,10 @@ jobs:
           Write-Host "Updated version to: $version"
 
       - name: Install dependencies
-        run: npm install --no-save
+        run: |
+          Remove-Item -Recurse -Force node_modules -ErrorAction SilentlyContinue
+          npm install --include=optional
+        shell: pwsh
 
       - name: Build application
         run: npm run build
@@ -80,7 +83,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
 
       - name: Update version for beta release
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
@@ -100,7 +102,9 @@ jobs:
           echo "Updated version to: $VERSION"
 
       - name: Install dependencies
-        run: npm install --no-save
+        run: |
+          rm -rf node_modules
+          npm install --include=optional
 
       - name: Build application
         run: npm run build
@@ -133,7 +137,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
 
       - name: Update version for beta release
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
@@ -153,7 +156,9 @@ jobs:
           echo "Updated version to: $VERSION"
 
       - name: Install dependencies
-        run: npm install --no-save
+        run: |
+          rm -rf node_modules
+          npm install --include=optional
 
       - name: Build application
         run: npm run build
