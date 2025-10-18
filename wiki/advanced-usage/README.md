@@ -4,12 +4,44 @@ This guide covers advanced features and techniques for power users who want to g
 
 ## Table of Contents
 
+### Core Features
+
 * [Advanced Encoding Settings](./#advanced-encoding-settings)
 * [Two-Pass Encoding](./#two-pass-encoding)
 * [Custom FFmpeg Parameters](./#custom-ffmpeg-parameters)
 * [Working with Different Formats](./#working-with-different-formats)
 * [Optimizing for Different Use Cases](./#optimizing-for-different-use-cases)
 * [Scripting and Automation](./#scripting-and-automation)
+
+### Video Tools
+
+* [**Video Trimming and Concatenation**](video-trimming-concatenation.md) - Trim and join videos
+* [**Video Comparison**](video-comparison.md) - Side-by-side comparison
+* [**Thumbnail Generation**](thumbnail-generation.md) - Video preview thumbnails
+
+### Download and Import
+
+* [**YouTube Download**](youtube-download.md) - Download from YouTube and 1000+ sites
+
+### Quality and Analysis
+
+* [**Quality Analysis**](quality-analysis.md) - PSNR, SSIM, VMAF metrics
+* [**Target File Size**](target-file-size.md) - Auto-calculate bitrate
+
+### Presets and Configuration
+
+* [**Custom Presets**](custom-presets.md) - Create and manage presets
+* [**Advanced Presets**](advancedpresets.md) - Conditional logic presets
+* [**Preset Repositories**](presetrepositories.md) - GitHub preset downloads
+
+### Processing
+
+* [**Batch Processing**](batch-processing.md) - Multiple file workflows
+* [**HDR Encoding**](hdrencoding.md) - HDR10, HDR10+, Dolby Vision
+
+### Interface
+
+* [**Themes and Appearance**](themes-and-appearance.md) - UI customization
 
 ## Advanced Encoding Settings
 
