@@ -43,11 +43,10 @@ jobs:
           $packageJson.version = $version
           $packageJson | ConvertTo-Json -Depth 100 | Set-Content package.json
           
-          # Update package-lock.json
-          $packageLockJson = Get-Content package-lock.json -Raw | ConvertFrom-Json
-          $packageLockJson.version = $version
-          $packageLockJson.packages."".version = $version
-          $packageLockJson | ConvertTo-Json -Depth 100 | Set-Content package-lock.json
+          # Update package-lock.json using regex (avoid empty string key issue)
+          $packageLock = Get-Content package-lock.json -Raw
+          $packageLock = $packageLock -replace '"version":\s*"[^"]*"', "`"version`": `"$version`"" -replace '("packages":\s*\{[\s\S]*?""):\s*\{[\s\S]*?"version":\s*"[^"]*"', "`$1: {`n    `"version`": `"$version`""
+          $packageLock | Set-Content package-lock.json
           
           Write-Host "Updated version to: $version"
 
