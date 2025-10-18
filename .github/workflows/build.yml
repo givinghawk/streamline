@@ -26,6 +26,26 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
+      - name: Update version for beta release
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+        shell: pwsh
+        run: |
+          $sha = "${{ github.sha }}".Substring(0, 7)
+          $version = "beta-$sha"
+          
+          # Update package.json
+          $packageJson = Get-Content package.json -Raw | ConvertFrom-Json
+          $packageJson.version = $version
+          $packageJson | ConvertTo-Json -Depth 100 | Set-Content package.json
+          
+          # Update package-lock.json
+          $packageLockJson = Get-Content package-lock.json -Raw | ConvertFrom-Json
+          $packageLockJson.version = $version
+          $packageLockJson.packages."".version = $version
+          $packageLockJson | ConvertTo-Json -Depth 100 | Set-Content package-lock.json
+          
+          Write-Host "Updated version to: $version"
+
       - name: Install dependencies
         run: npm ci
 
@@ -63,6 +83,22 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
+      - name: Update version for beta release
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+        run: |
+          SHA_SHORT=$(echo ${{ github.sha }} | cut -c1-7)
+          VERSION="beta-$SHA_SHORT"
+          
+          # Update package.json
+          jq --arg version "$VERSION" '.version = $version' package.json > package.json.tmp
+          mv package.json.tmp package.json
+          
+          # Update package-lock.json
+          jq --arg version "$VERSION" '.version = $version | .packages[""].version = $version' package-lock.json > package-lock.json.tmp
+          mv package-lock.json.tmp package-lock.json
+          
+          echo "Updated version to: $VERSION"
+
       - name: Install dependencies
         run: npm ci
 
@@ -98,6 +134,22 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
+
+      - name: Update version for beta release
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+        run: |
+          SHA_SHORT=$(echo ${{ github.sha }} | cut -c1-7)
+          VERSION="beta-$SHA_SHORT"
+          
+          # Update package.json
+          jq --arg version "$VERSION" '.version = $version' package.json > package.json.tmp
+          mv package.json.tmp package.json
+          
+          # Update package-lock.json
+          jq --arg version "$VERSION" '.version = $version | .packages[""].version = $version' package-lock.json > package-lock.json.tmp
+          mv package-lock.json.tmp package-lock.json
+          
+          echo "Updated version to: $VERSION"
 
       - name: Install dependencies
         run: npm ci
