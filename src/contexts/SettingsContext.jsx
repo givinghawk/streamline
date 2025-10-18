@@ -26,6 +26,18 @@ export const SettingsProvider = ({ children }) => {
     maxConcurrentJobs: 1,
     batchMode: false, // false = same directory with _optimised suffix (default), true = /optimised subfolder
     updateChannel: 'stable', // 'stable' or 'beta'
+    // Quality validation settings
+    enableQualityValidation: true,
+    qualityThresholds: {
+      psnr: 30, // dB
+      ssim: 0.9, // 0-1 scale
+      vmaf: 80 // 0-100 scale
+    },
+    // Recent files settings
+    maxRecentFiles: 10,
+    recentFiles: [],
+    // Favorites settings
+    favoritePresets: [],
   });
 
   const [customPresets, setCustomPresets] = useState([]);
@@ -242,6 +254,69 @@ export const SettingsProvider = ({ children }) => {
     return preset;
   };
 
+  // Recent files management
+  const addRecentFile = (filePath, outputPath, presetName) => {
+    const recentFile = {
+      id: Date.now(),
+      filePath,
+      outputPath,
+      presetName,
+      timestamp: new Date().toISOString(),
+    };
+
+    setSettings(prev => {
+      const updatedRecentFiles = [recentFile, ...prev.recentFiles.filter(f => f.filePath !== filePath)]
+        .slice(0, prev.maxRecentFiles);
+      return { ...prev, recentFiles: updatedRecentFiles };
+    });
+  };
+
+  const clearRecentFiles = () => {
+    setSettings(prev => ({ ...prev, recentFiles: [] }));
+  };
+
+  // Favorites management
+  const togglePresetFavorite = (presetId) => {
+    setSettings(prev => {
+      const favorites = prev.favoritePresets.includes(presetId)
+        ? prev.favoritePresets.filter(id => id !== presetId)
+        : [...prev.favoritePresets, presetId];
+      return { ...prev, favoritePresets: favorites };
+    });
+  };
+
+  const getFavoritePresets = () => {
+    const allPresets = getAllPresets();
+    return allPresets.filter(preset => settings.favoritePresets.includes(preset.id));
+  };
+
+  // Quality validation
+  const validateQuality = (qualityMetrics) => {
+    if (!settings.enableQualityValidation || !qualityMetrics) {
+      return { isValid: true, warnings: [] };
+    }
+
+    const warnings = [];
+    const thresholds = settings.qualityThresholds;
+
+    if (qualityMetrics.psnr && qualityMetrics.psnr < thresholds.psnr) {
+      warnings.push(`PSNR (${qualityMetrics.psnr.toFixed(2)}dB) is below threshold (${thresholds.psnr}dB)`);
+    }
+
+    if (qualityMetrics.ssim && qualityMetrics.ssim < thresholds.ssim) {
+      warnings.push(`SSIM (${qualityMetrics.ssim.toFixed(3)}) is below threshold (${thresholds.ssim})`);
+    }
+
+    if (qualityMetrics.vmaf && qualityMetrics.vmaf < thresholds.vmaf) {
+      warnings.push(`VMAF (${qualityMetrics.vmaf.toFixed(1)}) is below threshold (${thresholds.vmaf})`);
+    }
+
+    return {
+      isValid: warnings.length === 0,
+      warnings
+    };
+  };
+
   const value = {
     settings,
     updateSetting,
@@ -253,6 +328,14 @@ export const SettingsProvider = ({ children }) => {
     exportPreset,
     importPreset,
     importPresetFromFFmpegCommand,
+    // Recent files
+    addRecentFile,
+    clearRecentFiles,
+    // Favorites
+    togglePresetFavorite,
+    getFavoritePresets,
+    // Quality validation
+    validateQuality,
   };
 
   return (

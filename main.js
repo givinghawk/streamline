@@ -121,7 +121,14 @@ if (fileArg && !isDev) {
 
 
 // IPC Handlers
-let ffmpegHandler, thumbnailHandler, analysisHandler, fileFormatsHandler;
+let ffmpegHandler, thumbnailHandler, analysisHandler, fileFormatsHandler, sharpHandler;
+try {
+  sharpHandler = require('./src/electron/sharp');
+  console.log('✓ Sharp handler loaded successfully');
+} catch (error) {
+  console.error('✗ Failed to load Sharp handler:', error);
+  sharpHandler = null;
+}
 
 try {
   ffmpegHandler = require('./src/electron/ffmpeg');
@@ -156,6 +163,7 @@ try {
 }
 
 ipcMain.handle('get-file-info', async (event, filePath) => {
+  console.log('get-file-info called with path:', filePath); // Debug log
   if (!ffmpegHandler) {
     throw new Error('FFmpeg handler not loaded');
   }
@@ -189,12 +197,50 @@ ipcMain.handle('check-hardware-support', async () => {
 });
 
 ipcMain.handle('encode-file', async (event, options) => {
+  console.log('encode-file called with options:', options); // Debug log
   if (!ffmpegHandler) {
-    throw new Error('FFmpeg handler not loaded');
+    const error = new Error('FFmpeg handler not loaded');
+    error.type = 'system';
+    error.suggestion = 'Try restarting the application or reinstalling FFmpeg.';
+    throw error;
   }
-  return await ffmpegHandler.encodeFile(options, (progress) => {
-    mainWindow.webContents.send('encoding-progress', progress);
-  });
+  // Detect if input is a single image and output is webp
+  const inputExt = path.extname(options.inputPath).toLowerCase();
+  const outputExt = path.extname(options.outputPath).toLowerCase();
+  const isImage = ['.jpg', '.jpeg', '.png', '.bmp', '.gif', '.tiff'].includes(inputExt);
+  const isWebpOrImage = ['.webp', '.png', '.jpg', '.jpeg'].includes(outputExt);
+
+  try {
+    if (isImage && isWebpOrImage && sharpHandler) {
+      // Use sharp for single image conversion
+      return await sharpHandler.convertImage(options.inputPath, options.outputPath, {
+        quality: options.preset?.settings?.quality || 80
+      });
+    } else {
+      // Use ffmpeg for video/animated images
+      return await ffmpegHandler.encodeFile(options, (progress) => {
+        mainWindow.webContents.send('encoding-progress', progress);
+      });
+    }
+  } catch (error) {
+    // Enhance error with additional context for better reporting
+    const enhancedError = new Error(error.message);
+    enhancedError.type = (isImage && isWebpOrImage) ? 'sharp' : 'ffmpeg';
+    enhancedError.originalError = error;
+    enhancedError.ffmpegOutput = error.message;
+    enhancedError.ffmpegCommand = error.command || 'Unknown command';
+    enhancedError.file = {
+      name: path.basename(options.inputPath || ''),
+      path: options.inputPath || '',
+      outputPath: options.outputPath || ''
+    };
+    enhancedError.settings = {
+      preset: options.preset,
+      customSettings: options.customSettings,
+      hardwareAccel: options.hardwareAccel
+    };
+    throw enhancedError;
+  }
 });
 
 // Thumbnail generation

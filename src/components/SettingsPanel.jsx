@@ -210,6 +210,110 @@ function SettingsPanel({ onClose }) {
               </div>
 
               <div>
+                <h3 className="text-lg font-semibold mb-4">Quality Validation</h3>
+                <div className="space-y-4">
+                  <label className="flex items-center justify-between p-4 bg-surface-elevated2 rounded-lg cursor-pointer hover:bg-surface-elevated2/80 transition-colors">
+                    <div>
+                      <div className="font-medium">Enable Quality Validation</div>
+                      <div className="text-sm text-gray-400">
+                        Automatically validate output quality and show warnings
+                      </div>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={settings.enableQualityValidation}
+                      onChange={(e) => updateSetting('enableQualityValidation', e.target.checked)}
+                      className="w-5 h-5 rounded bg-surface border-gray-600 text-primary-600 focus:ring-2 focus:ring-primary-500"
+                    />
+                  </label>
+
+                  {settings.enableQualityValidation && (
+                    <div className="p-4 bg-surface-elevated2 rounded-lg space-y-4">
+                      <div>
+                        <label className="block mb-2">
+                          <div className="font-medium">PSNR Threshold (dB)</div>
+                          <div className="text-sm text-gray-400 mb-2">
+                            Minimum PSNR value to consider acceptable quality
+                          </div>
+                        </label>
+                        <input
+                          type="number"
+                          min="20"
+                          max="50"
+                          step="0.1"
+                          value={settings.qualityThresholds?.psnr || 30}
+                          onChange={(e) => updateSetting('qualityThresholds', {
+                            ...settings.qualityThresholds,
+                            psnr: parseFloat(e.target.value)
+                          })}
+                          className="input w-32"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block mb-2">
+                          <div className="font-medium">SSIM Threshold</div>
+                          <div className="text-sm text-gray-400 mb-2">
+                            Minimum SSIM value (0-1 scale) to consider acceptable quality
+                          </div>
+                        </label>
+                        <input
+                          type="number"
+                          min="0.5"
+                          max="1"
+                          step="0.01"
+                          value={settings.qualityThresholds?.ssim || 0.9}
+                          onChange={(e) => updateSetting('qualityThresholds', {
+                            ...settings.qualityThresholds,
+                            ssim: parseFloat(e.target.value)
+                          })}
+                          className="input w-32"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block mb-2">
+                          <div className="font-medium">VMAF Threshold</div>
+                          <div className="text-sm text-gray-400 mb-2">
+                            Minimum VMAF score (0-100 scale) to consider acceptable quality
+                          </div>
+                        </label>
+                        <input
+                          type="number"
+                          min="50"
+                          max="100"
+                          step="1"
+                          value={settings.qualityThresholds?.vmaf || 80}
+                          onChange={(e) => updateSetting('qualityThresholds', {
+                            ...settings.qualityThresholds,
+                            vmaf: parseFloat(e.target.value)
+                          })}
+                          className="input w-32"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="p-4 bg-surface-elevated2 rounded-lg">
+                    <label className="block mb-2">
+                      <div className="font-medium">Max Recent Files</div>
+                      <div className="text-sm text-gray-400 mb-2">
+                        Maximum number of recent files to remember
+                      </div>
+                    </label>
+                    <input
+                      type="number"
+                      min="5"
+                      max="50"
+                      value={settings.maxRecentFiles || 10}
+                      onChange={(e) => updateSetting('maxRecentFiles', parseInt(e.target.value))}
+                      className="input w-32"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div>
                 <h3 className="text-lg font-semibold mb-4">Default Paths</h3>
                 <div className="space-y-4">
                   <div>

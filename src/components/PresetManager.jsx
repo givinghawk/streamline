@@ -42,6 +42,12 @@ const UploadIcon = () => (
   </svg>
 );
 
+const HeartIcon = ({ filled = false }) => (
+  <svg className="w-5 h-5" fill={filled ? "currentColor" : "none"} viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+  </svg>
+);
+
 const SearchIcon = () => (
   <svg className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none z-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -61,7 +67,15 @@ const GithubIcon = () => (
 );
 
 function PresetManager() {
-  const { settings, customPresets, addCustomPreset, updateCustomPreset, deleteCustomPreset } = useSettings();
+  const { 
+    settings, 
+    customPresets, 
+    addCustomPreset, 
+    updateCustomPreset, 
+    deleteCustomPreset,
+    togglePresetFavorite,
+    getFavoritePresets
+  } = useSettings();
   const [showWizard, setShowWizard] = useState(false);
   const [showPresetBrowser, setShowPresetBrowser] = useState(false);
   const [editingPreset, setEditingPreset] = useState(null);
@@ -69,6 +83,7 @@ function PresetManager() {
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [downloadedPresets, setDownloadedPresets] = useState([]);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
 
   // Load downloaded presets from localStorage
   useEffect(() => {
@@ -162,7 +177,8 @@ function PresetManager() {
     const matchesSearch = preset.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (preset.description && preset.description.toLowerCase().includes(searchQuery.toLowerCase()));
     const matchesCategory = categoryFilter === 'all' || preset.category === categoryFilter;
-    return matchesSearch && matchesCategory;
+    const matchesFavorites = !showFavoritesOnly || settings.favoritePresets.includes(preset.id);
+    return matchesSearch && matchesCategory && matchesFavorites;
   });
 
   // Group by category
@@ -222,6 +238,18 @@ function PresetManager() {
         </div>
 
         <div className="flex items-center space-x-1">
+          <button
+            onClick={() => togglePresetFavorite(preset.id)}
+            className={`p-2 transition-colors rounded ${
+              settings.favoritePresets.includes(preset.id)
+                ? 'text-red-500 hover:text-red-400'
+                : 'text-gray-400 hover:text-red-500'
+            }`}
+            title={settings.favoritePresets.includes(preset.id) ? "Remove from favorites" : "Add to favorites"}
+          >
+            <HeartIcon filled={settings.favoritePresets.includes(preset.id)} />
+          </button>
+          
           <button
             onClick={() => handleExportPreset(preset)}
             className="p-2 text-gray-400 hover:text-primary-400 transition-colors rounded"
@@ -329,6 +357,22 @@ function PresetManager() {
             <option value="audio">Audio</option>
             <option value="image">Image</option>
           </select>
+          <button
+            onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
+            className={`
+              px-4 py-2.5 rounded-lg border flex items-center space-x-2 transition-colors
+              ${showFavoritesOnly
+                ? 'bg-red-500 border-red-500 text-white'
+                : settings.theme === 'dark' 
+                  ? 'bg-surface-elevated border-gray-700 text-gray-200 hover:bg-gray-700' 
+                  : 'bg-white border-gray-300 text-gray-900 hover:bg-gray-50'
+              }
+            `}
+            title={showFavoritesOnly ? "Show all presets" : "Show favorites only"}
+          >
+            <HeartIcon filled={showFavoritesOnly} />
+            <span>Favorites</span>
+          </button>
         </div>
 
         {/* Stats */}

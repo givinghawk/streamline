@@ -1,4 +1,4 @@
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer, webUtils } = require('electron');
 
 console.log('Preload script starting...');
 
@@ -9,6 +9,8 @@ contextBridge.exposeInMainWorld('electron', {
   encodeFile: (options) => ipcRenderer.invoke('encode-file', options),
   selectOutputDirectory: () => ipcRenderer.invoke('select-output-directory'),
   checkFileExists: (filePath) => ipcRenderer.invoke('check-file-exists', filePath),
+  // File path utilities
+  getPathForFile: (file) => webUtils.getPathForFile(file),
   onEncodingProgress: (callback) => {
     ipcRenderer.on('encoding-progress', (event, progress) => callback(progress));
   },

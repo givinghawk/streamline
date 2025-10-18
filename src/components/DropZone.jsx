@@ -19,9 +19,27 @@ function DropZone({ onFilesAdded, files, fileType }) {
     setIsDragging(false);
 
     const droppedFiles = Array.from(e.dataTransfer.files).map(file => {
-      // In Electron, file.path gives us the actual file system path
-      // In browser, we use the webkitRelativePath or name
-      const filePath = file.path || file.webkitRelativePath || file.name;
+      // Use Electron's webUtils.getPathForFile for reliable file paths
+      let filePath = file.name; // fallback
+      
+      try {
+        if (window.electron?.getPathForFile) {
+          filePath = window.electron.getPathForFile(file);
+        } else if (file.path) {
+          filePath = file.path;
+        }
+      } catch (error) {
+        console.warn('Failed to get file path, using fallback:', error);
+        filePath = file.webkitRelativePath || file.name;
+      }
+      
+      console.log('Dropped file:', {
+        name: file.name,
+        path: filePath,
+        originalPath: file.path,
+        size: file.size,
+        type: file.type
+      }); // Debug log
       
       return {
         name: file.name,
@@ -31,12 +49,33 @@ function DropZone({ onFilesAdded, files, fileType }) {
       };
     });
 
+    console.log('All dropped files:', droppedFiles); // Debug log
     onFilesAdded(droppedFiles);
   };
 
   const handleFileInput = (e) => {
     const selectedFiles = Array.from(e.target.files).map(file => {
-      const filePath = file.path || file.webkitRelativePath || file.name;
+      // Use Electron's webUtils.getPathForFile for reliable file paths
+      let filePath = file.name; // fallback
+      
+      try {
+        if (window.electron?.getPathForFile) {
+          filePath = window.electron.getPathForFile(file);
+        } else if (file.path) {
+          filePath = file.path;
+        }
+      } catch (error) {
+        console.warn('Failed to get file path, using fallback:', error);
+        filePath = file.webkitRelativePath || file.name;
+      }
+      
+      console.log('Selected file:', {
+        name: file.name,
+        path: filePath,
+        originalPath: file.path,
+        size: file.size,
+        type: file.type
+      }); // Debug log
       
       return {
         name: file.name,
@@ -46,6 +85,7 @@ function DropZone({ onFilesAdded, files, fileType }) {
       };
     });
 
+    console.log('All selected files:', selectedFiles); // Debug log
     onFilesAdded(selectedFiles);
     e.target.value = ''; // Reset input to allow re-selecting the same files
   };
