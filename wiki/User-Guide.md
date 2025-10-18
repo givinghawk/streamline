@@ -19,20 +19,53 @@ This comprehensive guide covers all the core features and workflows in Streamlin
 The Streamline interface consists of several key areas:
 
 1. **Title Bar** - Window controls (minimize, maximize, close)
-2. **Header** - Application logo and settings button
-3. **Drop Zone** - Drag and drop area for adding files
-4. **File Info Panel** - Details about the selected file
-5. **Preset Selector** - Choose encoding presets
-6. **Advanced Settings** - Custom encoding parameters
-7. **Output Settings** - Configure output location and naming
-8. **Batch Queue** - List of queued and processed files
-9. **Progress Area** - Real-time encoding progress
+2. **Header** - Application logo, Start Encode button, and settings
+3. **Mode Tabs** - Switch between different workflows (see below)
+4. **Content Area** - Changes based on selected tab
+5. **Batch Queue** - List of queued and processed files
+6. **Progress Area** - Real-time encoding progress
+
+### Mode Tabs
+
+Streamline v0.5.0 features a tabbed interface for different workflows:
+
+**📥 Import Tab**
+- Drag and drop files to add them to the queue
+- View basic file information
+- Build your encoding queue
+
+**⚙️ Encode Tab**
+- Configure encoding settings for queued files
+- Select presets and adjust advanced settings
+- Set output location and options
+- Start encoding process
+
+**📊 Analysis Tab**
+- View detailed file analysis
+- See codec information, bitrate, and quality metrics
+- Analyze before encoding
+
+**✂️ Trim/Concat Tab**
+- Trim video clips (remove unwanted sections)
+- Concatenate multiple videos into one
+- Set start/end times with preview
+
+**⬇️ Download Tab**
+- Download videos from YouTube and other sites
+- Extract audio from videos
+- Choose quality and format
+
+**📦 Presets Tab**
+- Browse preset library (built-in, custom, downloaded)
+- Create custom presets with Preset Wizard
+- Download community presets from GitHub
+- Import/export preset files
 
 ### Theme Toggle
 
 Switch between dark and light themes:
 
-1. Click the settings icon (gear)
+1. Click the settings icon (gear) in the header
 2. Navigate to "Appearance"
 3. Select "Dark Mode" or "Light Mode"
 

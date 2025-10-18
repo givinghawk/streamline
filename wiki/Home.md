@@ -26,7 +26,10 @@ Welcome to the Streamline documentation! Streamline is a powerful desktop applic
 * [**Hardware Acceleration**](Hardware-Acceleration.md) - GPU-accelerated encoding
 * [**Quality Analysis**](advanced-usage/quality-analysis.md) - PSNR, SSIM, and VMAF metrics
 * [**Video Comparison**](advanced-usage/video-comparison.md) - Side-by-side comparison tool
+* [**Video Trimming/Concatenation**](advanced-usage/video-trimming-concatenation.md) - Trim and join videos
+* [**YouTube Download**](advanced-usage/youtube-download.md) - Download videos from YouTube and 1000+ sites
 * [**Preset System**](Preset-System.md) - Built-in and custom presets
+* [**Preset Wizard**](Preset-Wizard-Guide.md) - Step-by-step preset creator
 * [**Custom Presets**](advanced-usage/custom-presets.md) - Creating and managing custom presets
 * [**Preset Repositories**](advanced-usage/presetrepositories.md) - Download presets from GitHub
 * [**Advanced Presets**](advanced-usage/advancedpresets.md) - Conditional logic for intelligent encoding
@@ -54,10 +57,15 @@ Streamline is designed to make video and audio encoding accessible to everyone, 
 
 ### Key Features
 
+* **Tabbed Interface** - Organized workflow with Import, Encode, Analysis, Trim/Concat, Download, and Presets tabs
 * **Batch Processing** - Queue and process multiple files
 * **Hardware Acceleration** - Automatic detection for NVIDIA, AMD, Intel, and Apple Silicon
 * **Quality Analysis** - Measure encoding quality with industry-standard metrics
 * **Video Comparison** - Compare original and encoded videos side-by-side
+* **Video Editing** - Trim and concatenate videos without quality loss
+* **YouTube Download** - Download videos from YouTube and 1000+ platforms
+* **Preset Wizard** - Step-by-step creator with 80+ encoding parameters
+* **Preset Library** - Browse, create, and download community presets from GitHub
 * **Flexible Presets** - Choose from built-in presets or create your own
 * **Custom File Formats** - Save and share queues, presets, analysis, and reports
 * **Modern UI** - Clean, responsive interface with dark and light themes

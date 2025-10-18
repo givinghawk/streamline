@@ -458,8 +458,95 @@ Streamline handles this automatically.
 2. Adjust CRF in Advanced Settings
 3. Create [Custom Preset](advanced-usage/custom-presets.md) with lower CRF
 
+## Downloading Community Presets
+
+### Preset Browser (v0.5.0+)
+
+Download presets from GitHub repositories directly in the app.
+
+#### Opening Preset Browser
+
+1. Navigate to **Presets** tab (storage icon)
+2. Click **"Download Presets"** button
+3. Browse available presets from the community
+
+#### Browsing Presets
+
+The Preset Browser shows:
+* Preset name and description
+* Codec information (video/audio)
+* Category (Video, Audio, Image)
+* Download status
+
+**Features**:
+* Search by name or description
+* Filter by category
+* Individual preset downloads
+* Visual download status
+
+#### Downloading a Preset
+
+1. Find desired preset using search/filter
+2. Click **"Download"** button
+3. Button shows "Downloading..." with spinner
+4. Changes to "✓ Downloaded" when complete
+5. Preset appears in main library immediately
+
+#### Managing Repositories
+
+##### Adding Custom Repositories
+
+1. Click **⚙️ (Settings)** icon in Preset Browser
+2. Click **"+ Add Repository"**
+3. Enter repository in format:
+   * `owner/repo` (uses main branch)
+   * `owner/repo/branch` (specific branch)
+4. Examples:
+   * `johndoe/ffmpeg-presets`
+   * `company/work-presets/production`
+
+##### Switching Repositories
+
+1. Open repository manager (⚙️ icon)
+2. Click **"Select"** on desired repository
+3. Presets reload automatically
+4. Button changes to **"Active"** (blue)
+
+##### Removing Repositories
+
+1. Open repository manager
+2. Click **🗑️ (trash)** icon next to repository
+3. Repository removed instantly
+4. **Note**: Default repository cannot be removed
+
+#### Repository Format
+
+Compatible repositories must contain:
+* `.slpreset` files (JSON format)
+* Located in root or `presets/` folder
+* Valid preset structure with settings
+
+### Downloaded Preset Management
+
+Downloaded presets:
+* Stored in browser localStorage
+* Appear in main library with "GitHub" badge
+* Can be exported as .slpreset files
+* Cannot be edited (create custom version instead)
+* Tagged with source repository
+
+### Preset Icons
+
+| Icon | Action | Description |
+|------|--------|-------------|
+| ↓ | Download Presets | Open preset browser |
+| 💾 | Save to File | Export preset as .slpreset |
+| ✏️ | Edit | Modify custom preset |
+| 🗑️ | Delete | Remove custom preset |
+
 ## Next Steps
 
+* Use [Preset Wizard](Preset-Wizard-Guide.md) to create custom presets
 * Create [Custom Presets](advanced-usage/custom-presets.md) for specific needs
 * Learn about [Advanced Usage](advanced-usage/) to override preset settings
 * Use [Quality Analysis](advanced-usage/quality-analysis.md) to compare presets

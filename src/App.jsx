@@ -15,6 +15,7 @@ import ModeTabs from './components/ModeTabs';
 import AnalysisPanel from './components/AnalysisPanel';
 import VideoTrimConcat from './components/VideoTrimConcat';
 import Download from './components/Download';
+import PresetManager from './components/PresetManager';
 import KeyboardShortcutsHelp from './components/KeyboardShortcutsHelp';
 import { useSettings } from './contexts/SettingsContext';
 import { detectFileType, filterPresetsByFileType, getRecommendedPreset } from './utils/fileTypeDetection';
@@ -816,6 +817,8 @@ function App() {
           <VideoTrimConcat />
         ) : currentMode === 'download' ? (
           <Download />
+        ) : currentMode === 'presets' ? (
+          <PresetManager />
         ) : currentMode === 'import' ? (
           /* Import Mode - Just drop zone and basic info */
           <div className="space-y-6">
@@ -844,9 +847,9 @@ function App() {
           </div>
         ) : (
           /* Encode Mode - Full encoding interface */
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left Column - Selected Files & Queue */}
-          <div className="lg:col-span-2 space-y-6">
+        <div className="space-y-6 max-w-4xl mx-auto">
+          {/* Files & Queue */}
+          <div className="space-y-6">
             {fileInfo && (
               <BasicFileInfo 
                 fileInfo={fileInfo} 
@@ -898,7 +901,7 @@ function App() {
             )}
           </div>
 
-          {/* Right Column - Settings */}
+          {/* Settings */}
           <div className="space-y-6">
             <OutputSettings 
               outputDirectory={outputDirectory}

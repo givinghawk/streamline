@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { PRESETS } from '../constants/presets';
+import { getDownloadedPresets } from '../utils/presetRepository';
 
 const SettingsContext = createContext();
 
@@ -95,7 +96,8 @@ export const SettingsProvider = ({ children }) => {
   };
 
   const getAllPresets = () => {
-    return [...PRESETS, ...customPresets];
+    const downloadedPresets = getDownloadedPresets();
+    return [...PRESETS, ...customPresets, ...downloadedPresets];
   };
 
   const exportPreset = (preset) => {

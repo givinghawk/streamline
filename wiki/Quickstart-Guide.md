@@ -42,35 +42,46 @@ npm run electron:dev
 
 1. **Launch Streamline**
    * Open the application from your Applications folder or Start menu
-2. **Add a File**
+
+2. **Add a File** (Import Tab)
+   * Make sure you're on the **Import** tab (📥 icon)
    * Drag and drop a video or audio file into the application window
    * OR click the drop zone to browse for a file
-3. **Select a Preset**
-   * Choose from presets like "Balanced" or "High Quality"
+   * File is added to the queue
+
+3. **Configure Encoding** (Encode Tab)
+   * Switch to the **Encode** tab (⚙️ icon)
+   * Select a preset like "Balanced" or "High Quality"
    * For audio files, select an audio preset like "Standard (MP3)"
+   * Adjust output settings if needed
+
 4. **Start Encoding**
-   * Click the "Start Encode" button
+   * Click the "Start Encode" button in the header
    * Watch the progress bar as your file is encoded
    * A notification will appear when complete
+
 5. **Find Your File**
    * By default, files are saved in the same directory with `_optimised` suffix
    * Example: `video.mp4` → `video_optimised.mp4`
 
 ### Batch Processing Multiple Files
 
-1. **Drop Multiple Files**
-   * Drag and drop several files into the application
+1. **Add Multiple Files** (Import Tab)
+   * Drag and drop several files into the Import tab
    * Each file appears in the batch queue
-2. **Configure Settings** (Optional)
-   * Select presets for individual files
+
+2. **Configure Settings** (Encode Tab)
+   * Switch to the Encode tab
+   * Select presets for individual files in the queue
    * OR use the same preset for all files
-3. **Enable Batch Mode** (Optional)
-   * Click the settings icon
-   * Go to Output Settings
-   * Toggle "Batch Mode" to save files in `/optimised` subfolder
+
+3. **Set Output Location** (Optional)
+   * Configure output directory in Encode tab
+   * Enable "Batch Mode" in settings to save files in `/optimised` subfolder
+
 4. **Start Batch Processing**
-   * Click "Start Batch"
-   * Files are processed sequentially
+   * Click "Start Encode" in the header
+   * Files are processed sequentially (or in parallel if configured)
    * Progress updates for each file
 
 ## Common Presets
