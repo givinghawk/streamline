@@ -36,7 +36,7 @@ const modes = [
     name: 'Trim/Concat',
     icon: (
       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 10l-2 1m0 0l-2-1m2 1v2.5M20 7l-2 1m0 0l-2-1m2 1v2.5M14 4l-2 1m0 0l-2-1m2 1v2.5m0 4l-2-1m0 0l-2 1m2-1v2.5M4 7l2-1m0 0l2 1M6 7v2.5m0-4l2-1m0 0l2 1m-2-1v2.5" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 4v16M17 4v16M3 8h18M3 12h18M3 16h18" />
       </svg>
     ),
   },
