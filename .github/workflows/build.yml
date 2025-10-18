@@ -43,9 +43,15 @@ jobs:
           $packageJson.version = $version
           $packageJson | ConvertTo-Json -Depth 100 | Set-Content package.json
           
-          # Update package-lock.json using regex (avoid empty string key issue)
+          # Update package-lock.json - only update the top-level version and root package
           $packageLock = Get-Content package-lock.json -Raw
-          $packageLock = $packageLock -replace '"version":\s*"[^"]*"', "`"version`": `"$version`"" -replace '("packages":\s*\{[\s\S]*?""):\s*\{[\s\S]*?"version":\s*"[^"]*"', "`$1: {`n    `"version`": `"$version`""
+          
+          # Replace top-level version (first occurrence after opening brace)
+          $packageLock = $packageLock -replace '(?ms)^(\{\s*\r?\n\s*"name":\s*"[^"]*",\s*\r?\n\s*)"version":\s*"[^"]*"', "`$1`"version`": `"$version`""
+          
+          # Replace root package version (packages[""])
+          $packageLock = $packageLock -replace '(?ms)("packages":\s*\{\s*\r?\n\s*""):\s*\{\s*\r?\n\s*("name":\s*"[^"]*",\s*\r?\n\s*)"version":\s*"[^"]*"', "`$1: {`n      `$2`"version`": `"$version`""
+          
           $packageLock | Set-Content package-lock.json
           
           Write-Host "Updated version to: $version"
