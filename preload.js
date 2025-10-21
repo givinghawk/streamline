@@ -83,6 +83,13 @@ contextBridge.exposeInMainWorld('electron', {
   removeDownloadProgressListener: () => {
     ipcRenderer.removeAllListeners('download-progress');
   },
+  // Benchmark
+  getSystemInfo: () => ipcRenderer.invoke('get-system-info'),
+  downloadBenchmarkVideo: (url) => ipcRenderer.invoke('download-benchmark-video', url),
+  runBenchmarkTest: (options) => ipcRenderer.invoke('run-benchmark-test', options),
+  saveBenchmark: (data) => ipcRenderer.invoke('save-benchmark', data),
+  loadBenchmark: (filePath) => ipcRenderer.invoke('load-benchmark', filePath),
+  getSavedBenchmarks: () => ipcRenderer.invoke('get-saved-benchmarks'),
 });
 
 console.log('Preload script completed - window.electron should be available');

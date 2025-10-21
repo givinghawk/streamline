@@ -11,6 +11,10 @@ function KeyboardShortcutsHelp({ isOpen, onClose, theme }) {
         { key: 'ctrl+1', description: 'Switch to Import mode' },
         { key: 'ctrl+2', description: 'Switch to Encode mode' },
         { key: 'ctrl+3', description: 'Switch to Analysis mode' },
+        { key: 'ctrl+4', description: 'Switch to Trim/Concat mode' },
+        { key: 'ctrl+5', description: 'Switch to Download mode' },
+        { key: 'ctrl+6', description: 'Switch to Presets mode' },
+        { key: 'ctrl+7', description: 'Switch to Benchmark mode' },
       ],
     },
     {

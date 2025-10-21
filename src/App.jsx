@@ -28,6 +28,7 @@ import KeyboardShortcutsHelp from './components/KeyboardShortcutsHelp';
 import RecentFiles from './components/RecentFiles';
 import QualityValidationAlert from './components/QualityValidationAlert';
 import UndoRedoControls from './components/UndoRedoControls';
+import Benchmark from './components/Benchmark';
 import ErrorModal from './components/ErrorModal';
 import { useSettings } from './contexts/SettingsContext';
 import { ErrorProvider, useError } from './contexts/ErrorContext';
@@ -202,6 +203,10 @@ function App() {
     'ctrl+1': () => setCurrentMode('import'),
     'ctrl+2': () => setCurrentMode('encode'),
     'ctrl+3': () => setCurrentMode('analysis'),
+    'ctrl+4': () => setCurrentMode('trimconcat'),
+    'ctrl+5': () => setCurrentMode('download'),
+    'ctrl+6': () => setCurrentMode('presets'),
+    'ctrl+7': () => setCurrentMode('benchmark'),
     
     // Undo/Redo for advanced settings
     'ctrl+z': () => {
@@ -906,6 +911,8 @@ function App() {
           <Download />
         ) : currentMode === 'presets' ? (
           <PresetManager />
+        ) : currentMode === 'benchmark' ? (
+          <Benchmark />
         ) : currentMode === 'import' ? (
           /* Import Mode - Just drop zone and basic info */
           <div className="space-y-6">

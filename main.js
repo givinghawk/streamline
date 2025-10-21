@@ -218,11 +218,25 @@ ipcMain.handle('encode-file', async (event, options) => {
       });
     } else {
       // Use ffmpeg for video/animated images
-      return await ffmpegHandler.encodeFile(options, (progress) => {
+      const result = await ffmpegHandler.encodeFile(options, (progress) => {
         mainWindow.webContents.send('encoding-progress', progress);
+        // Update taskbar progress
+        if (mainWindow && progress.percent !== undefined) {
+          const progressValue = progress.percent / 100;
+          mainWindow.setProgressBar(progressValue);
+        }
       });
+      // Reset taskbar progress on completion
+      if (mainWindow) {
+        mainWindow.setProgressBar(-1);
+      }
+      return result;
     }
   } catch (error) {
+    // Reset taskbar progress on error
+    if (mainWindow) {
+      mainWindow.setProgressBar(-1);
+    }
     // Enhance error with additional context for better reporting
     const enhancedError = new Error(error.message);
     enhancedError.type = (isImage && isWebpOrImage) ? 'sharp' : 'ffmpeg';
@@ -853,6 +867,8 @@ ipcMain.handle('download-video', async (event, options) => {
               progress,
               status: `Downloading... ${progress}%`,
             });
+            // Update taskbar progress
+            mainWindow.setProgressBar(progress / 100);
           }
         }
         
@@ -876,6 +892,8 @@ ipcMain.handle('download-video', async (event, options) => {
               progress,
               status: `Downloading... ${progress}%`,
             });
+            // Update taskbar progress
+            mainWindow.setProgressBar(progress / 100);
           }
         }
       });
@@ -886,6 +904,8 @@ ipcMain.handle('download-video', async (event, options) => {
             progress: 100,
             status: 'Download complete!',
           });
+          // Reset taskbar progress
+          mainWindow.setProgressBar(-1);
           
           // Try to find the downloaded file
           let finalPath = downloadedFile;
@@ -920,6 +940,542 @@ ipcMain.handle('download-video', async (event, options) => {
     });
   } catch (error) {
     throw new Error(`Download error: ${error.message}`);
+  }
+});
+
+// Helper function to format duration
+function formatDuration(seconds) {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = seconds % 60;
+  
+  if (hours > 0) {
+    return `${hours}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+  }
+  return `${minutes}:${String(secs).padStart(2, '0')}`;
+}
+
+// Helper function to detect GPU memory on Windows
+async function detectWindowsGpuMemory() {
+  try {
+    const { exec } = require('child_process');
+    const { promisify } = require('util');
+    const execAsync = promisify(exec);
+    
+    // Try using wmic (Windows Management Instrumentation Command-line) to get GPU VRAM
+    // This is more reliable than systeminformation for GPU memory
+    const { stdout } = await execAsync(
+      'wmic path win32_videocontroller get name,adapterram /format:list',
+      { encoding: 'utf8', timeout: 5000 }
+    );
+    
+    const lines = stdout.split('\n');
+    const gpuInfo = {};
+    
+    for (const line of lines) {
+      if (line.includes('Name=')) {
+        gpuInfo.name = line.replace('Name=', '').trim();
+      }
+      if (line.includes('AdapterRAM=')) {
+        const ramBytes = parseInt(line.replace('AdapterRAM=', '').trim());
+        if (ramBytes > 0) {
+          gpuInfo.memory = Math.round(ramBytes / 1024 / 1024); // Convert to MB
+        }
+      }
+    }
+    
+    return gpuInfo;
+  } catch (error) {
+    // wmic not available or failed, return empty
+    return {};
+  }
+}
+
+// Benchmark handlers
+ipcMain.handle('get-system-info', async () => {
+  const os = require('os');
+  const si = require('systeminformation');
+  
+  try {
+    const [cpu, graphics, osInfo, disk, memory, mainboard] = await Promise.all([
+      si.cpu(),
+      si.graphics(),
+      si.osInfo(),
+      si.diskLayout(),
+      si.mem(),
+      si.baseboard().catch(() => null)
+    ]);
+
+    // Extract real GPU info - filter out virtual displays
+    let gpuInfo = 'Unknown GPU';
+    let gpuMemory = 0;
+    
+    if (graphics && graphics.controllers && graphics.controllers.length > 0) {
+      // Try to find a real GPU (not virtual monitor)
+      for (const controller of graphics.controllers) {
+        const model = controller.model || '';
+        // Filter out virtual displays
+        if (!model.toLowerCase().includes('virtual') && 
+            !model.toLowerCase().includes('meta') &&
+            model.length > 0) {
+          gpuInfo = model;
+          gpuMemory = controller.memory || 0;
+          break;
+        }
+      }
+      
+      // If no real GPU found, try the first one that has memory
+      if (gpuInfo === 'Unknown GPU' && graphics.controllers[0]) {
+        for (const controller of graphics.controllers) {
+          if (controller.memory && controller.memory > 0) {
+            gpuInfo = controller.model || 'Unknown GPU';
+            gpuMemory = controller.memory;
+            break;
+          }
+        }
+      }
+      
+      // Last resort - just use the first controller
+      if (gpuInfo === 'Unknown GPU' && graphics.controllers[0]) {
+        gpuInfo = graphics.controllers[0].model || 'Unknown GPU';
+        gpuMemory = graphics.controllers[0].memory || 0;
+      }
+      
+      // Additional memory detection for systems where systeminformation doesn't report it
+      if (gpuMemory === 0 && graphics.controllers[0]) {
+        // Try to get memory from vram property if available
+        const primaryGPU = graphics.controllers[0];
+        if (primaryGPU.vram) {
+          gpuMemory = primaryGPU.vram;
+        } else if (primaryGPU.memory_used !== undefined && primaryGPU.memory_total !== undefined) {
+          gpuMemory = primaryGPU.memory_total;
+        }
+      }
+    }
+    
+    // Windows-specific GPU memory detection using WMI
+    if (osInfo.platform === 'win32' && gpuMemory === 0) {
+      try {
+        const windowsGpuInfo = await detectWindowsGpuMemory();
+        if (windowsGpuInfo.name) {
+          gpuInfo = windowsGpuInfo.name;
+        }
+        if (windowsGpuInfo.memory && windowsGpuInfo.memory > 0) {
+          gpuMemory = windowsGpuInfo.memory;
+        }
+      } catch (e) {
+        // Windows detection failed, continue with other methods
+      }
+    }
+
+    // Get RAM type (DDR4, DDR5, etc.)
+    let ramType = 'Unknown';
+    try {
+      if (mainboard && mainboard.memoryMax) {
+        // Try to detect from mainboard info
+        const boardStr = JSON.stringify(mainboard).toLowerCase();
+        if (boardStr.includes('ddr5')) ramType = 'DDR5';
+        else if (boardStr.includes('ddr4')) ramType = 'DDR4';
+        else if (boardStr.includes('ddr3')) ramType = 'DDR3';
+      }
+    } catch (e) {
+      // Fallback
+      ramType = 'Unknown';
+    }
+
+    // Get drive info
+    let driveInfo = 'Unknown';
+    if (disk && disk.length > 0) {
+      const mainDrive = disk[0];
+      driveInfo = `${mainDrive.type || 'Unknown'} - ${mainDrive.name || 'Unknown'}`;
+      if (mainDrive.size) {
+        driveInfo += ` (${(mainDrive.size / 1024 / 1024 / 1024 / 1024).toFixed(2)}TB)`;
+      }
+    }
+
+    const totalRamGB = Math.round(os.totalmem() / 1024 / 1024 / 1024);
+    const ramString = `${totalRamGB}GB ${ramType}`;
+
+    return {
+      // CPU Info
+      cpu: cpu.brand || 'Unknown CPU',
+      cpuCores: cpu.cores || os.cpus().length,
+      cpuSpeed: cpu.speed ? `${cpu.speed}GHz` : 'Unknown',
+      
+      // GPU Info
+      gpu: gpuInfo,
+      gpuMemory: gpuMemory > 0 ? `${gpuMemory}MB` : 'Unknown',
+      
+      // RAM Info
+      ram: ramString,
+      ramTotal: `${totalRamGB}GB`,
+      ramType: ramType,
+      ramUsed: `${Math.round((os.totalmem() - os.freemem()) / 1024 / 1024 / 1024)}GB`,
+      ramAvailable: `${Math.round(os.freemem() / 1024 / 1024 / 1024)}GB`,
+      
+      // OS Info
+      os: `${osInfo.distro} ${osInfo.release}`,
+      platform: osInfo.platform,
+      arch: osInfo.arch,
+      
+      // Drive Info
+      drive: driveInfo,
+      
+      // System Info
+      hostname: os.hostname(),
+      country: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      uptime: `${Math.round(os.uptime() / 3600)} hours`,
+      
+      // Additional Info
+      timestamp: new Date().toISOString(),
+      date: new Date().toLocaleDateString(),
+      time: new Date().toLocaleTimeString(),
+      
+      // All graphics controllers for detailed info
+      allGpus: graphics.controllers ? graphics.controllers.map(c => ({
+        model: c.model || 'Unknown',
+        memory: c.memory || 0,
+        vendor: c.vendor || 'Unknown',
+        type: c.type || 'Unknown'
+      })) : []
+    };
+  } catch (error) {
+    console.error('Error getting detailed system info:', error);
+    
+    // Fallback if systeminformation fails
+    const totalRamGB = Math.round(os.totalmem() / 1024 / 1024 / 1024);
+    
+    return {
+      cpu: os.cpus()[0]?.model || 'Unknown CPU',
+      cpuCores: os.cpus().length,
+      cpuSpeed: `${os.cpus()[0]?.speed || 0}MHz`,
+      gpu: 'Unknown GPU',
+      gpuMemory: 'Unknown',
+      ram: `${totalRamGB}GB Unknown Type`,
+      ramTotal: `${totalRamGB}GB`,
+      ramType: 'Unknown',
+      ramUsed: `${Math.round((os.totalmem() - os.freemem()) / 1024 / 1024 / 1024)}GB`,
+      ramAvailable: `${Math.round(os.freemem() / 1024 / 1024 / 1024)}GB`,
+      os: `${os.platform()} ${os.release()}`,
+      platform: os.platform(),
+      arch: os.arch(),
+      drive: 'Unknown',
+      hostname: os.hostname(),
+      country: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      uptime: `${Math.round(os.uptime() / 3600)} hours`,
+      timestamp: new Date().toISOString(),
+      date: new Date().toLocaleDateString(),
+      time: new Date().toLocaleTimeString(),
+      allGpus: []
+    };
+  }
+});
+
+ipcMain.handle('download-benchmark-video', async (event, url) => {
+  const tempDir = path.join(app.getPath('temp'), 'streamline-benchmark');
+  
+  // Create temp directory if it doesn't exist
+  if (!fsSync.existsSync(tempDir)) {
+    fsSync.mkdirSync(tempDir, { recursive: true });
+  }
+
+  try {
+    const outputPath = tempDir;
+    
+    return new Promise((resolve, reject) => {
+      let lastProgress = 0;
+      let downloadedFile = '';
+      
+      const args = [
+        url,
+        `-f`, `bestvideo+bestaudio/best`,
+        `-o`, path.join(outputPath, '%(title)s.%(ext)s'),
+        '--progress',
+        '--newline',
+        '--no-warnings',
+      ];
+      
+      const ytdlp = spawn('yt-dlp', args);
+      
+      ytdlp.stdout.on('data', (data) => {
+        const output = data.toString();
+        
+        const progressMatch = output.match(/\[download\]\s+(\d+\.?\d*)%/);
+        if (progressMatch) {
+          const progress = Math.round(parseFloat(progressMatch[1]));
+          if (progress > lastProgress) {
+            lastProgress = progress;
+            mainWindow.webContents.send('download-progress', {
+              progress,
+              status: `Downloading benchmark video... ${progress}%`,
+            });
+            mainWindow.setProgressBar(progress / 100);
+          }
+        }
+        
+        const destinationMatch = output.match(/Destination:\s*(.+?)(?:\n|$)/);
+        if (destinationMatch) {
+          downloadedFile = destinationMatch[1].trim();
+        }
+      });
+      
+      ytdlp.stderr.on('data', (data) => {
+        const output = data.toString();
+        const progressMatch = output.match(/\[download\]\s+(\d+\.?\d*)%/);
+        if (progressMatch) {
+          const progress = Math.round(parseFloat(progressMatch[1]));
+          if (progress > lastProgress) {
+            lastProgress = progress;
+            mainWindow.webContents.send('download-progress', {
+              progress,
+              status: `Downloading benchmark video... ${progress}%`,
+            });
+            mainWindow.setProgressBar(progress / 100);
+          }
+        }
+      });
+      
+      ytdlp.on('close', (code) => {
+        mainWindow.setProgressBar(-1);
+        
+        if (code === 0) {
+          let finalPath = downloadedFile;
+          if (!finalPath || !fsSync.existsSync(finalPath)) {
+            const files = fsSync.readdirSync(outputPath);
+            if (files.length > 0) {
+              const newestFile = files
+                .map(f => ({
+                  name: f,
+                  time: fsSync.statSync(path.join(outputPath, f)).mtime.getTime(),
+                }))
+                .sort((a, b) => b.time - a.time)[0];
+              
+              finalPath = path.join(outputPath, newestFile.name);
+            }
+          }
+          
+          resolve({
+            success: true,
+            filePath: finalPath || '',
+            fileName: path.basename(finalPath || 'unknown'),
+          });
+        } else {
+          reject(new Error(`Download failed with code ${code}`));
+        }
+      });
+      
+      ytdlp.on('error', (err) => {
+        reject(new Error(`yt-dlp error: ${err.message}`));
+      });
+    });
+  } catch (error) {
+    throw new Error(`Download error: ${error.message}`);
+  }
+});
+
+ipcMain.handle('run-benchmark-test', async (event, options) => {
+  const { inputPath, codec, hwAccel, resolution } = options;
+  const outputDir = path.join(app.getPath('temp'), 'streamline-benchmark-output');
+  
+  if (!fsSync.existsSync(outputDir)) {
+    fsSync.mkdirSync(outputDir, { recursive: true });
+  }
+  
+  const outputPath = path.join(outputDir, `test_${codec}_${hwAccel || 'sw'}_${Date.now()}.mp4`);
+  
+  try {
+    const startTime = Date.now();
+    
+    // Build FFmpeg command based on codec and hardware acceleration
+    // For benchmarking, we'll use a simpler approach: just specify the encoder
+    let codecArgs = [];
+    
+    if (hwAccel === 'nvidia') {
+      // NVIDIA NVENC - just use the encoder, FFmpeg will handle it
+      if (codec === 'h264') {
+        codecArgs = ['-c:v', 'h264_nvenc', '-preset', 'fast'];
+      }
+      else if (codec === 'h265') {
+        codecArgs = ['-c:v', 'hevc_nvenc', '-preset', 'fast'];
+      }
+      else if (codec === 'av1') {
+        codecArgs = ['-c:v', 'av1_nvenc', '-preset', 'fast'];
+      }
+    } else if (hwAccel === 'amd') {
+      // AMD AMF - encoder only
+      if (codec === 'h264') codecArgs = ['-c:v', 'h264_amf'];
+      else if (codec === 'h265') codecArgs = ['-c:v', 'hevc_amf'];
+      else if (codec === 'av1') codecArgs = ['-c:v', 'av1_amf'];
+    } else if (hwAccel === 'intel') {
+      // Intel QSV
+      if (codec === 'h264') codecArgs = ['-c:v', 'h264_qsv'];
+      else if (codec === 'h265') codecArgs = ['-c:v', 'hevc_qsv'];
+      else if (codec === 'av1') codecArgs = ['-c:v', 'av1_qsv'];
+    } else if (hwAccel === 'apple') {
+      // Apple VideoToolbox
+      if (codec === 'h264') codecArgs = ['-c:v', 'h264_videotoolbox'];
+      else if (codec === 'h265') codecArgs = ['-c:v', 'hevc_videotoolbox'];
+    } else {
+      // Software encoding
+      if (codec === 'h264') codecArgs = ['-c:v', 'libx264'];
+      else if (codec === 'h265') codecArgs = ['-c:v', 'libx265'];
+      else if (codec === 'av1') codecArgs = ['-c:v', 'libaom-av1'];
+    }
+    
+    const args = [
+      '-i', inputPath,
+      ...codecArgs,
+      '-b:v', '5M',
+      '-c:a', 'aac',
+      '-b:a', '128k',
+      '-y',
+      outputPath
+    ];
+    
+    console.log(`Running benchmark test: ${codec} with ${hwAccel || 'software'} acceleration`);
+    console.log(`FFmpeg command: ffmpeg ${args.join(' ')}`);
+    
+    const result = await executeFFmpegBenchmark(args, outputPath, startTime, codec, hwAccel);
+    return result;
+  } catch (error) {
+    // If hardware acceleration failed, try software fallback
+    if (hwAccel && hwAccel !== 'software') {
+      console.warn(`Hardware acceleration (${hwAccel}) failed for ${codec}, trying software encoding...`);
+      try {
+        const softwareOptions = {
+          inputPath,
+          codec,
+          hwAccel: null,
+          resolution
+        };
+        return await new Promise((resolve, reject) => {
+          // Recursive call with no hardware acceleration
+          ipcMain.emit('benchmark-software-fallback', { resolve, reject, softwareOptions });
+        });
+      } catch (fallbackError) {
+        throw new Error(`Benchmark test failed for both hardware and software: ${error.message}`);
+      }
+    }
+    throw new Error(`Benchmark test failed: ${error.message}`);
+  }
+});
+
+// Helper function to execute FFmpeg benchmark
+async function executeFFmpegBenchmark(args, outputPath, startTime, codec, hwAccel) {
+  return new Promise((resolve, reject) => {
+    const ffmpeg = spawn('ffmpeg', args);
+    let stderr = '';
+    
+    ffmpeg.stderr.on('data', (data) => {
+      stderr += data.toString();
+    });
+    
+    ffmpeg.on('close', (code) => {
+      if (code === 0) {
+        const endTime = Date.now();
+        const duration = (endTime - startTime) / 1000; // in seconds
+        
+        // Parse FFmpeg output for stats
+        const fpsMatch = stderr.match(/fps=\s*(\d+\.?\d*)/);
+        const speedMatch = stderr.match(/speed=\s*(\d+\.?\d*)x/);
+        
+        try {
+          const stats = fsSync.statSync(outputPath);
+          
+          resolve({
+            success: true,
+            duration,
+            fps: fpsMatch ? parseFloat(fpsMatch[1]) : 0,
+            speed: speedMatch ? parseFloat(speedMatch[1]) : duration > 0 ? 1 : 0,
+            fileSize: stats.size,
+            bitrate: (stats.size * 8) / duration, // bits per second
+          });
+        } catch (statError) {
+          reject(new Error(`Failed to get output file stats: ${statError.message}`));
+        }
+      } else {
+        const lastLines = stderr.split('\n').slice(-30).join('\n');
+        console.error(`FFmpeg failed with code ${code} for ${codec} (${hwAccel || 'software'})`);
+        console.error(`Last stderr lines:\n${lastLines}`);
+        reject(new Error(`FFmpeg failed with code ${code}`));
+      }
+      
+      // Clean up output file regardless of success
+      try {
+        fsSync.unlinkSync(outputPath);
+      } catch (e) {
+        // File might not exist or already deleted, that's ok
+      }
+    });
+    
+    ffmpeg.on('error', (err) => {
+      console.error(`FFmpeg process error: ${err.message}`);
+      reject(err);
+    });
+  });
+}
+
+ipcMain.handle('save-benchmark', async (event, benchmarkData) => {
+  try {
+    const filePath = await dialog.showSaveDialog(mainWindow, {
+      title: 'Save Benchmark Results',
+      defaultPath: `benchmark_${new Date().toISOString().replace(/:/g, '-')}.slbench`,
+      filters: [
+        { name: 'Streamline Benchmark', extensions: ['slbench'] },
+        { name: 'All Files', extensions: ['*'] }
+      ]
+    });
+
+    if (filePath.filePath) {
+      await fs.writeFile(filePath.filePath, JSON.stringify(benchmarkData, null, 2));
+      return filePath.filePath;
+    }
+    
+    return null;
+  } catch (error) {
+    throw new Error(`Failed to save benchmark: ${error.message}`);
+  }
+});
+
+ipcMain.handle('load-benchmark', async (event, filePath) => {
+  try {
+    const data = await fs.readFile(filePath, 'utf8');
+    return JSON.parse(data);
+  } catch (error) {
+    throw new Error(`Failed to load benchmark: ${error.message}`);
+  }
+});
+
+ipcMain.handle('get-saved-benchmarks', async () => {
+  try {
+    const benchmarksDir = path.join(app.getPath('userData'), 'benchmarks');
+    
+    if (!fsSync.existsSync(benchmarksDir)) {
+      return [];
+    }
+    
+    const files = await fs.readdir(benchmarksDir);
+    const benchmarks = [];
+    
+    for (const file of files) {
+      if (file.endsWith('.slbench')) {
+        const filePath = path.join(benchmarksDir, file);
+        const stats = await fs.stat(filePath);
+        const data = JSON.parse(await fs.readFile(filePath, 'utf8'));
+        
+        benchmarks.push({
+          name: file,
+          path: filePath,
+          timestamp: data.timestamp || stats.mtime.toISOString(),
+          systemInfo: data.systemInfo
+        });
+      }
+    }
+    
+    return benchmarks.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+  } catch (error) {
+    console.error('Failed to get saved benchmarks:', error);
+    return [];
   }
 });
 

@@ -57,7 +57,7 @@ function Download() {
 
     try {
       // Listen for progress updates
-      const unsubscribe = window.electron.onDownloadProgress((data) => {
+      window.electron.onDownloadProgress((data) => {
         setProgress(data.progress);
         setStatus(data.status);
       });
@@ -72,7 +72,7 @@ function Download() {
       setStatus(`Download complete! Saved to ${result.filePath}`);
       setUrl('');
       setVideoInfo(null);
-      unsubscribe();
+      window.electron.removeDownloadProgressListener();
     } catch (err) {
       setError(`Download failed: ${err.message}`);
     } finally {
