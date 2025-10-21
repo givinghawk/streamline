@@ -121,7 +121,7 @@ function Download() {
                 type="text"
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
-                placeholder="Enter YouTube, Vimeo, or other video URL..."
+                placeholder="Enter Soundcloud, Vimeo, or other video URL..."
                 className={`flex-1 px-4 py-3 rounded-lg border ${borderColor} ${inputBg} ${textColor}`}
                 onKeyPress={(e) => e.key === 'Enter' && handleGetInfo()}
               />
