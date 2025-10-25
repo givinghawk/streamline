@@ -46,9 +46,7 @@ function Benchmark() {
   const [enabledTests, setEnabledTests] = useState({});
   const [showTestList, setShowTestList] = useState(false);
   const [cancelBenchmark, setCancelBenchmark] = useState(false);
-  const [benchmarkPreset, setBenchmarkPreset] = useState('recommended');
   const [estimatedTime, setEstimatedTime] = useState(0);
-  const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
   const [sortBy, setSortBy] = useState('speed');
   const [showComparison, setShowComparison] = useState(false);
   const [benchmarkStep, setBenchmarkStep] = useState('idle'); // 'idle' | 'detecting' | 'downloading' | 'benchmarking' | 'complete'
@@ -62,116 +60,24 @@ function Benchmark() {
   const cardBg = settings.theme === 'dark' ? 'bg-surface-elevated' : 'bg-gray-50';
 
   useEffect(() => {
-    loadHardwareSupport();
     loadSystemInfo();
     loadSavedBenchmarks();
     loadCachedDetection();
   }, []);
 
   const loadHardwareSupport = async () => {
-    try {
-      const support = await window.electron.checkHardwareSupport();
-      setHardwareSupport(support);
-      
-      // Initialize available codecs and enabled tests
-      const codecs = buildAvailableCodecs(support);
-      setAvailableCodecs(codecs);
-      
-      // Apply recommended preset by default
-      const preset = BENCHMARK_PRESETS.recommended;
-      const enabledMap = {};
-      codecs.forEach(codec => {
-        enabledMap[codec.name] = preset.filter(codec);
-      });
-      setEnabledTests(enabledMap);
-      updateEstimatedTime(enabledMap);
-    } catch (error) {
-      console.error('Failed to check hardware support:', error);
-    }
+    // This function is no longer used - encoder detection is done via detectEncoders()
   };
 
-  const buildAvailableCodecs = (support) => {
-    if (!support) return [];
+  const buildAvailableCodecs = (detectedEncoders) => {
+    // Build codec list from actually detected encoders
+    if (!detectedEncoders || !Array.isArray(detectedEncoders)) return [];
 
-    const codecs = [];
-
-    // Software encoding
-    codecs.push({ name: 'H.264 (Software)', codec: 'h264', hwAccel: null });
-    codecs.push({ name: 'H.265 (Software)', codec: 'h265', hwAccel: null });
-    codecs.push({ name: 'AV1 (Software)', codec: 'av1', hwAccel: null });
-
-    // Hardware encoding
-    if (support.nvidia) {
-      codecs.push({ name: 'H.264 (NVIDIA NVENC)', codec: 'h264', hwAccel: 'nvidia' });
-      codecs.push({ name: 'H.265 (NVIDIA NVENC)', codec: 'h265', hwAccel: 'nvidia' });
-      if (support.nvencAv1) {
-        codecs.push({ name: 'AV1 (NVIDIA NVENC)', codec: 'av1', hwAccel: 'nvidia' });
-      }
-    }
-
-    if (support.amd) {
-      codecs.push({ name: 'H.264 (AMD AMF)', codec: 'h264', hwAccel: 'amd' });
-      codecs.push({ name: 'H.265 (AMD AMF)', codec: 'h265', hwAccel: 'amd' });
-      if (support.amfAv1) {
-        codecs.push({ name: 'AV1 (AMD AMF)', codec: 'av1', hwAccel: 'amd' });
-      }
-    }
-
-    if (support.intel) {
-      codecs.push({ name: 'H.264 (Intel QSV)', codec: 'h264', hwAccel: 'intel' });
-      codecs.push({ name: 'H.265 (Intel QSV)', codec: 'h265', hwAccel: 'intel' });
-      if (support.qsvAv1) {
-        codecs.push({ name: 'AV1 (Intel QSV)', codec: 'av1', hwAccel: 'intel' });
-      }
-    }
-
-    if (support.apple) {
-      codecs.push({ name: 'H.264 (Apple VideoToolbox)', codec: 'h264', hwAccel: 'apple' });
-      codecs.push({ name: 'H.265 (Apple VideoToolbox)', codec: 'h265', hwAccel: 'apple' });
-    }
-
-    return codecs;
-  };
-
-  const BENCHMARK_PRESETS = {
-    quick: {
-      name: 'Quick Test',
-      description: 'Test only H.264 with hardware acceleration if available (1-2 minutes)',
-      filter: (codec) => codec.codec === 'h264' && codec.hwAccel !== null
-    },
-    recommended: {
-      name: 'Recommended',
-      description: 'Test H.264 and H.265 with hardware acceleration (3-5 minutes)',
-      filter: (codec) => ['h264', 'h265'].includes(codec.codec) && codec.hwAccel !== null
-    },
-    comprehensive: {
-      name: 'Comprehensive',
-      description: 'Test all available codecs including software encoding (10-20 minutes)',
-      filter: () => true
-    },
-    hardware_only: {
-      name: 'Hardware Only',
-      description: 'Test all hardware-accelerated encoders (5-8 minutes)',
-      filter: (codec) => codec.hwAccel !== null
-    },
-    software_only: {
-      name: 'Software Only',
-      description: 'Test software encoders for compatibility testing (15-30 minutes)',
-      filter: (codec) => codec.hwAccel === null
-    }
-  };
-
-  const applyPreset = (presetKey) => {
-    setBenchmarkPreset(presetKey);
-    const preset = BENCHMARK_PRESETS[presetKey];
-    const newEnabled = {};
-    
-    availableCodecs.forEach(codec => {
-      newEnabled[codec.name] = preset.filter(codec);
-    });
-    
-    setEnabledTests(newEnabled);
-    updateEstimatedTime(newEnabled);
+    return detectedEncoders.map(encoder => ({
+      name: encoder.name,
+      codec: encoder.codec,
+      hwAccel: encoder.hwAccel
+    }));
   };
 
   const updateEstimatedTime = (enabledMap) => {
@@ -203,15 +109,19 @@ function Benchmark() {
   const loadCachedDetection = async () => {
     try {
       const cached = await window.electron.getDetectedEncoders();
-      if (cached) {
+      if (cached && cached.detectedEncoders) {
         setDetectionResults(cached);
-        // Update available codecs based on detected encoders
-        const detectedNames = cached.detectedEncoders.map(e => e.name);
+        // Build available codecs from detected encoders
+        const codecs = buildAvailableCodecs(cached.detectedEncoders);
+        setAvailableCodecs(codecs);
+        
+        // Enable all detected encoders by default
         const newEnabled = {};
-        availableCodecs.forEach(codec => {
-          newEnabled[codec.name] = detectedNames.includes(codec.name);
+        codecs.forEach(codec => {
+          newEnabled[codec.name] = true;
         });
         setEnabledTests(newEnabled);
+        updateEstimatedTime(newEnabled);
       }
     } catch (error) {
       console.error('Failed to load cached detection:', error);
@@ -227,13 +137,17 @@ function Benchmark() {
       const results = await window.electron.detectEncoders();
       setDetectionResults(results);
 
-      // Update available codecs based on detected encoders
-      const detectedNames = results.detectedEncoders.map(e => e.name);
+      // Build available codecs from detected encoders
+      const codecs = buildAvailableCodecs(results.detectedEncoders);
+      setAvailableCodecs(codecs);
+      
+      // Enable all detected encoders by default
       const newEnabled = {};
-      availableCodecs.forEach(codec => {
-        newEnabled[codec.name] = detectedNames.includes(codec.name);
+      codecs.forEach(codec => {
+        newEnabled[codec.name] = true;
       });
       setEnabledTests(newEnabled);
+      updateEstimatedTime(newEnabled);
 
       // Move to next step after detection completes
       setBenchmarkStep('download');
@@ -349,7 +263,6 @@ function Benchmark() {
     };
     setEnabledTests(newEnabled);
     updateEstimatedTime(newEnabled);
-    setBenchmarkPreset('custom');
   };
 
   const selectAllTests = () => {
@@ -359,7 +272,6 @@ function Benchmark() {
     });
     setEnabledTests(newEnabled);
     updateEstimatedTime(newEnabled);
-    setBenchmarkPreset('custom');
   };
 
   const deselectAllTests = () => {
@@ -369,7 +281,6 @@ function Benchmark() {
     });
     setEnabledTests(newEnabled);
     updateEstimatedTime(newEnabled);
-    setBenchmarkPreset('custom');
   };
 
   const saveBenchmark = async () => {
@@ -518,7 +429,7 @@ function Benchmark() {
           <div className={`${cardBg} border ${borderColor} rounded-lg p-4`}>
             <h2 className="text-xl font-semibold mb-4 text-primary-400">Step 1: Detect Available Encoders</h2>
             <p className={`${textColor} mb-4`}>
-              The benchmark will first detect which hardware encoders are available on your system. This will test all possible codec and platform combinations.
+              The benchmark will detect which encoders actually work on your system by testing all possible codec and hardware acceleration combinations. All detected encoders will be benchmarked.
             </p>
             
             {detectionResults && (
@@ -725,41 +636,11 @@ function Benchmark() {
               </div>
             )}
 
-            {/* Benchmark Presets */}
+            {/* Codec Selection */}
             <div className="mb-4">
-              <p className="text-sm font-semibold text-primary-300 mb-3">Preset Configuration:</p>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
-                {Object.entries(BENCHMARK_PRESETS).map(([key, preset]) => (
-                  <button
-                    key={key}
-                    onClick={() => applyPreset(key)}
-                    disabled={running}
-                    className={`p-4 rounded border text-left transition-colors ${
-                      benchmarkPreset === key
-                        ? 'border-primary-500 bg-primary-500/10'
-                        : `border-gray-600 hover:border-primary-400`
-                    } disabled:opacity-50 disabled:cursor-not-allowed`}
-                  >
-                    <div className="font-semibold text-primary-300">{preset.name}</div>
-                    <div className="text-sm text-gray-500 mt-1">{preset.description}</div>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Advanced Options Toggle */}
-            <button
-              onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
-              className="flex items-center gap-2 text-primary-400 hover:text-primary-300 transition-colors mb-3"
-              disabled={running}
-            >
-              <span>{showAdvancedOptions ? '▼' : '▶'}</span>
-              <span>Advanced Options</span>
-            </button>
-
-            {showAdvancedOptions && (
-              <div className={`p-4 border ${borderColor} rounded bg-opacity-50 mb-4`}>
-                <div className="flex gap-2 mb-3">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-sm font-semibold text-primary-300">Select Codecs to Benchmark:</p>
+                <div className="flex gap-2">
                   <button
                     onClick={selectAllTests}
                     disabled={running}
@@ -774,13 +655,10 @@ function Benchmark() {
                   >
                     Deselect All
                   </button>
-                  {benchmarkPreset === 'custom' && (
-                    <span className="text-yellow-500 text-sm flex items-center">
-                      ⚠ Custom selection
-                    </span>
-                  )}
                 </div>
+              </div>
 
+              <div className={`p-4 border ${borderColor} rounded bg-opacity-50`}>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-48 overflow-y-auto">
                   {availableCodecs.map(codec => (
                     <label key={codec.name} className="flex items-center gap-2 cursor-pointer hover:bg-white/5 p-2 rounded transition-colors">
@@ -796,7 +674,7 @@ function Benchmark() {
                   ))}
                 </div>
               </div>
-            )}
+            </div>
 
             {/* Estimation Summary */}
             <div className="p-3 bg-blue-500/10 border border-blue-500/30 rounded mb-4">
