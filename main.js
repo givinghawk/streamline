@@ -1458,10 +1458,24 @@ ipcMain.handle('download-benchmark-video', async (event, url) => {
             }
           }
           
+          // Validate that the file exists and has content
+          if (!finalPath || !fsSync.existsSync(finalPath)) {
+            reject(new Error(`Downloaded file not found or path is invalid: ${finalPath}`));
+            return;
+          }
+          
+          const fileStats = fsSync.statSync(finalPath);
+          if (fileStats.size === 0) {
+            reject(new Error(`Downloaded file is empty: ${finalPath}`));
+            return;
+          }
+          
+          console.log(`Successfully downloaded benchmark video: ${finalPath} (${fileStats.size} bytes)`);
+          
           resolve({
             success: true,
-            filePath: finalPath || '',
-            fileName: path.basename(finalPath || 'unknown'),
+            filePath: finalPath,
+            fileName: path.basename(finalPath),
           });
         } else {
           reject(new Error(`Download failed with code ${code}`));
@@ -1537,6 +1551,18 @@ ipcMain.handle('run-benchmark-test', async (event, options) => {
       }
     }
   }
+
+  // Validate that input file exists
+  if (!fsSync.existsSync(actualInputPath)) {
+    throw new Error(`Input file not found: ${actualInputPath}`);
+  }
+  
+  const fileStats = fsSync.statSync(actualInputPath);
+  if (fileStats.size === 0) {
+    throw new Error(`Input file is empty: ${actualInputPath}`);
+  }
+  
+  console.log(`Benchmark input file: ${actualInputPath} (${fileStats.size} bytes)`);
   
   const outputPath = path.join(outputDir, `test_${codec}_${hwAccel || 'sw'}_${Date.now()}.mp4`);
   
@@ -1544,7 +1570,6 @@ ipcMain.handle('run-benchmark-test', async (event, options) => {
     const startTime = Date.now();
     
     // Build FFmpeg command based on codec and hardware acceleration
-    // For benchmarking, we'll use a simpler approach: just specify the encoder
     let codecArgs = [];
     
     if (hwAccel === 'nvidia') {
@@ -1585,6 +1610,7 @@ ipcMain.handle('run-benchmark-test', async (event, options) => {
       '-b:v', '5M',
       '-c:a', 'aac',
       '-b:a', '128k',
+      '-t', '10',  // Limit to 10 seconds for faster benchmark
       '-y',
       outputPath
     ];
@@ -1635,10 +1661,14 @@ async function executeFFmpegBenchmark(args, outputPath, startTime, codec, hwAcce
           reject(new Error(`Failed to get output file stats: ${statError.message}`));
         }
       } else {
-        const lastLines = stderr.split('\n').slice(-30).join('\n');
+        const lastLines = stderr.split('\n').slice(-50).join('\n');
         console.error(`FFmpeg failed with code ${code} for ${codec} (${hwAccel || 'software'})`);
+        console.error(`Input path: ${args[args.indexOf('-i') + 1]}`);
         console.error(`Last stderr lines:\n${lastLines}`);
-        reject(new Error(`FFmpeg failed with code ${code}`));
+        
+        // Return more detailed error message
+        const errorDetails = lastLines.match(/Error[^\\n]*/g)?.join('; ') || `FFmpeg error code ${code}`;
+        reject(new Error(`${errorDetails}`));
       }
       
       // Clean up output file regardless of success

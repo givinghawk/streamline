@@ -279,6 +279,19 @@ function Benchmark() {
     setResults([]);
     setBenchmarkStep('benchmarking');
 
+    // Verify the downloaded file exists and is readable
+    try {
+      const fileExists = await window.electron.checkFileExists(downloadedPath);
+      if (!fileExists) {
+        throw new Error(`Downloaded file not found: ${downloadedPath}`);
+      }
+    } catch (checkError) {
+      alert(`File validation failed: ${checkError.message}`);
+      setRunning(false);
+      setBenchmarkStep('download');
+      return;
+    }
+
     // Filter tests to only enabled ones (which are the detected encoders)
     const testsToRun = availableCodecs.filter(codec => enabledTests[codec.name]);
     setTotalTests(testsToRun.length);
