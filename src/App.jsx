@@ -30,6 +30,7 @@ import QualityValidationAlert from './components/QualityValidationAlert';
 import UndoRedoControls from './components/UndoRedoControls';
 import Benchmark from './components/Benchmark';
 import ErrorModal from './components/ErrorModal';
+import FirstTimeSetup from './components/FirstTimeSetup';
 import { useSettings } from './contexts/SettingsContext';
 import { ErrorProvider, useError } from './contexts/ErrorContext';
 import { detectFileType, filterPresetsByFileType, getRecommendedPreset } from './utils/fileTypeDetection';
@@ -69,6 +70,7 @@ function App() {
   const [qualityValidationResult, setQualityValidationResult] = useState(null);
   const [outputDirectory, setOutputDirectory] = useState('');
   const [showSplash, setShowSplash] = useState(true);
+  const [showFirstTimeSetup, setShowFirstTimeSetup] = useState(false);
   const [fileType, setFileType] = useState(null);
   const [overwriteFiles, setOverwriteFiles] = useState(false);
   const [currentMode, setCurrentMode] = useState('import'); // 'import', 'encode', 'analysis'
@@ -248,6 +250,13 @@ function App() {
   const handleSplashComplete = (support) => {
     setHardwareSupport(support);
     setShowSplash(false);
+    
+    // Check if this is first time running
+    const hasRunBefore = localStorage.getItem('streamline_has_run_before');
+    if (!hasRunBefore) {
+      setShowFirstTimeSetup(true);
+      localStorage.setItem('streamline_has_run_before', 'true');
+    }
   };
 
   const handleFilesAdded = async (newFiles) => {
@@ -882,6 +891,21 @@ function App() {
     );
   }
 
+  if (showFirstTimeSetup) {
+    return (
+      <div className={settings.theme === 'light' ? 'light' : 'dark'}>
+        <div className={themeClasses.container}>
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <FirstTimeSetup 
+              onComplete={() => setShowFirstTimeSetup(false)}
+              isResetup={false}
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={settings.theme === 'light' ? 'light' : 'dark'}>
       <div className={themeClasses.container}>
@@ -893,6 +917,7 @@ function App() {
             isProcessingBatch={isProcessingBatch}
             queueLength={queue.length}
             onShowShortcuts={() => setShowShortcutsHelp(true)}
+            onRerunSetup={() => setShowFirstTimeSetup(true)}
           />
           <ModeTabs currentMode={currentMode} onModeChange={setCurrentMode} />
         </div>

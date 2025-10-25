@@ -51,6 +51,10 @@ function Benchmark() {
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
   const [sortBy, setSortBy] = useState('speed');
   const [showComparison, setShowComparison] = useState(false);
+  const [benchmarkStep, setBenchmarkStep] = useState('idle'); // 'idle' | 'detecting' | 'downloading' | 'benchmarking' | 'complete'
+  const [detectionResults, setDetectionResults] = useState(null);
+  const [detectionRunning, setDetectionRunning] = useState(false);
+  const [detectionProgress, setDetectionProgress] = useState(0);
 
   const bgColor = settings.theme === 'dark' ? 'bg-surface' : 'bg-white';
   const borderColor = settings.theme === 'dark' ? 'border-gray-700' : 'border-gray-200';
@@ -61,6 +65,7 @@ function Benchmark() {
     loadHardwareSupport();
     loadSystemInfo();
     loadSavedBenchmarks();
+    loadCachedDetection();
   }, []);
 
   const loadHardwareSupport = async () => {
@@ -195,6 +200,51 @@ function Benchmark() {
     }
   };
 
+  const loadCachedDetection = async () => {
+    try {
+      const cached = await window.electron.getDetectedEncoders();
+      if (cached) {
+        setDetectionResults(cached);
+        // Update available codecs based on detected encoders
+        const detectedNames = cached.detectedEncoders.map(e => e.name);
+        const newEnabled = {};
+        availableCodecs.forEach(codec => {
+          newEnabled[codec.name] = detectedNames.includes(codec.name);
+        });
+        setEnabledTests(newEnabled);
+      }
+    } catch (error) {
+      console.error('Failed to load cached detection:', error);
+    }
+  };
+
+  const runEncoderDetection = async () => {
+    setDetectionRunning(true);
+    setBenchmarkStep('detecting');
+    setDetectionProgress(0);
+
+    try {
+      const results = await window.electron.detectEncoders();
+      setDetectionResults(results);
+
+      // Update available codecs based on detected encoders
+      const detectedNames = results.detectedEncoders.map(e => e.name);
+      const newEnabled = {};
+      availableCodecs.forEach(codec => {
+        newEnabled[codec.name] = detectedNames.includes(codec.name);
+      });
+      setEnabledTests(newEnabled);
+
+      // Move to next step after detection completes
+      setBenchmarkStep('download');
+    } catch (error) {
+      alert(`Failed to detect encoders: ${error.message}`);
+      setBenchmarkStep('idle');
+    } finally {
+      setDetectionRunning(false);
+    }
+  };
+
   const handleDownloadTestVideo = async () => {
     setDownloading(true);
     setDownloadProgress(0);
@@ -207,6 +257,9 @@ function Benchmark() {
       const result = await window.electron.downloadBenchmarkVideo(selectedVideo.url);
       setDownloadedPath(result.filePath);
       window.electron.removeDownloadProgressListener();
+      
+      // Move to benchmarking step after download
+      setBenchmarkStep('benchmark');
     } catch (error) {
       alert(`Failed to download test video: ${error.message}`);
     } finally {
@@ -224,8 +277,9 @@ function Benchmark() {
     setRunning(true);
     setCancelBenchmark(false);
     setResults([]);
+    setBenchmarkStep('benchmarking');
 
-    // Filter tests to only enabled ones
+    // Filter tests to only enabled ones (which are the detected encoders)
     const testsToRun = availableCodecs.filter(codec => enabledTests[codec.name]);
     setTotalTests(testsToRun.length);
     const benchmarkResults = [];
@@ -272,6 +326,7 @@ function Benchmark() {
     setTestProgress(0);
     setTotalTests(0);
     setCancelBenchmark(false);
+    setBenchmarkStep('complete');
   };
 
   const toggleTest = (testName) => {
@@ -418,6 +473,76 @@ function Benchmark() {
           </p>
         </div>
 
+        {/* Multi-Step Progress Indicator */}
+        {benchmarkStep !== 'idle' && benchmarkStep !== 'complete' && (
+          <div className={`${cardBg} border ${borderColor} rounded-lg p-4`}>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-lg font-semibold text-primary-400">Benchmark Progress</h3>
+              <span className="text-sm text-gray-500">
+                {benchmarkStep === 'detecting' && 'Step 1/3: Detecting Encoders'}
+                {benchmarkStep === 'download' && 'Step 2/3: Select Test Video'}
+                {benchmarkStep === 'benchmark' && 'Step 3/3: Running Benchmark'}
+              </span>
+            </div>
+            <div className="flex gap-2">
+              {['detecting', 'download', 'benchmark'].map((step, idx) => (
+                <div key={step} className="flex-1 flex items-center gap-2">
+                  <div className={`flex-1 h-2 rounded ${
+                    benchmarkStep === step || (
+                      (benchmarkStep === 'download' && idx > 0) ||
+                      (benchmarkStep === 'benchmark' && idx > 1)
+                    ) ? 'bg-primary-500' : 'bg-gray-700'
+                  }`}></div>
+                  {idx < 2 && <div className="w-0.5 h-2 bg-gray-700"></div>}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Step 1: Encoder Detection */}
+        {(benchmarkStep === 'idle' || benchmarkStep === 'detecting') && (
+          <div className={`${cardBg} border ${borderColor} rounded-lg p-4`}>
+            <h2 className="text-xl font-semibold mb-4 text-primary-400">Step 1: Detect Available Encoders</h2>
+            <p className={`${textColor} mb-4`}>
+              The benchmark will first detect which hardware encoders are available on your system. This will test all possible codec and platform combinations.
+            </p>
+            
+            {detectionResults && (
+              <div className="mb-4 space-y-3">
+                <div className={`border ${borderColor} rounded p-3 bg-green-500/10 border-green-500/30`}>
+                  <p className="text-green-400 text-sm font-semibold mb-2">Detection Complete</p>
+                  <p className="text-green-300 text-sm">
+                    Found {detectionResults.detectedEncoders.length} working encoder(s) out of {detectionResults.totalTested}
+                  </p>
+                </div>
+                
+                {detectionResults.detectedEncoders.length > 0 && (
+                  <div>
+                    <p className="text-sm font-semibold text-primary-300 mb-2">Available Encoders:</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      {detectionResults.detectedEncoders.map((encoder, idx) => (
+                        <div key={idx} className="flex items-center gap-2 text-sm text-green-400">
+                          <span>✓</span>
+                          <span>{encoder.name}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <button
+              onClick={runEncoderDetection}
+              disabled={detectionRunning}
+              className="btn-primary w-full md:w-auto"
+            >
+              {detectionRunning ? 'Detecting Encoders...' : 'Start Encoder Detection'}
+            </button>
+          </div>
+        )}
+
         {/* System Info */}
         {systemInfo && (
           <div className={`${cardBg} border ${borderColor} rounded-lg p-4`}>
@@ -527,149 +652,173 @@ function Benchmark() {
         )}
 
         {/* Test Video Selection */}
-        <div className={`${cardBg} border ${borderColor} rounded-lg p-4`}>
-          <h2 className="text-xl font-semibold mb-3 text-primary-400">Step 1: Select Test Video</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {TEST_VIDEOS.map((video) => (
-              <button
-                key={video.url}
-                onClick={() => {
-                  setSelectedVideo(video);
-                  updateEstimatedTime();
-                }}
-                className={`p-3 rounded border text-left transition-colors ${
-                  selectedVideo.url === video.url
-                    ? 'border-primary-500 bg-primary-500/10'
-                    : `border-gray-600 hover:border-primary-400`
-                }`}
-              >
-                <div className="font-semibold">{video.name}</div>
-                <div className="text-sm text-gray-500">
-                  {video.resolution} • {getVideoSizeDisplay()}
-                </div>
-              </button>
-            ))}
-          </div>
+        {(benchmarkStep === 'download' || benchmarkStep === 'benchmark' || benchmarkStep === 'complete') && (
+          <div className={`${cardBg} border ${borderColor} rounded-lg p-4`}>
+            <h2 className="text-xl font-semibold mb-3 text-primary-400">Step 2: Select Test Video</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {TEST_VIDEOS.map((video) => (
+                <button
+                  key={video.url}
+                  onClick={() => {
+                    setSelectedVideo(video);
+                    updateEstimatedTime();
+                  }}
+                  disabled={downloading || running}
+                  className={`p-3 rounded border text-left transition-colors ${
+                    selectedVideo.url === video.url
+                      ? 'border-primary-500 bg-primary-500/10'
+                      : `border-gray-600 hover:border-primary-400`
+                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+                >
+                  <div className="font-semibold">{video.name}</div>
+                  <div className="text-sm text-gray-500">
+                    {video.resolution} • {getVideoSizeDisplay()}
+                  </div>
+                </button>
+              ))}
+            </div>
 
-          <div className="mt-4">
-            {!downloadedPath ? (
-              <button
-                onClick={handleDownloadTestVideo}
-                disabled={downloading}
-                className="btn-primary w-full md:w-auto"
-              >
-                {downloading ? `Downloading... ${downloadProgress}%` : 'Download Test Video'}
-              </button>
-            ) : (
-              <div className="flex items-center gap-2 text-green-500">
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                <span>Test video ready</span>
+            <div className="mt-4">
+              {!downloadedPath ? (
+                <button
+                  onClick={handleDownloadTestVideo}
+                  disabled={downloading}
+                  className="btn-primary w-full md:w-auto"
+                >
+                  {downloading ? `Downloading... ${downloadProgress}%` : 'Download Test Video'}
+                </button>
+              ) : (
+                <div className="flex items-center gap-2 text-green-500">
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span>Test video ready</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Benchmark Configuration - Only show after detection and download */}
+        {(benchmarkStep === 'benchmark' || benchmarkStep === 'complete') && (
+          <div className={`${cardBg} border ${borderColor} rounded-lg p-4`}>
+            <h2 className="text-xl font-semibold mb-3 text-primary-400">Step 3: Configure & Run Benchmark</h2>
+            
+            {/* Detected Encoders Summary */}
+            {detectionResults && (
+              <div className="mb-4 p-3 bg-blue-500/10 border border-blue-500/30 rounded">
+                <p className="text-blue-400 text-sm font-semibold mb-2">Detected Encoders ({detectionResults.detectedEncoders.length}):</p>
+                <div className="text-blue-300 text-sm">{detectionResults.detectedEncoders.map(e => e.name).join(', ')}</div>
               </div>
             )}
-          </div>
-        </div>
 
-        {/* Benchmark Presets */}
-        <div className={`${cardBg} border ${borderColor} rounded-lg p-4`}>
-          <h2 className="text-xl font-semibold mb-3 text-primary-400">Step 2: Choose Benchmark Type</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
-            {Object.entries(BENCHMARK_PRESETS).map(([key, preset]) => (
-              <button
-                key={key}
-                onClick={() => applyPreset(key)}
-                className={`p-4 rounded border text-left transition-colors ${
-                  benchmarkPreset === key
-                    ? 'border-primary-500 bg-primary-500/10'
-                    : `border-gray-600 hover:border-primary-400`
-                }`}
-              >
-                <div className="font-semibold text-primary-300">{preset.name}</div>
-                <div className="text-sm text-gray-500 mt-1">{preset.description}</div>
-              </button>
-            ))}
-          </div>
-
-          {/* Advanced Options Toggle */}
-          <button
-            onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
-            className="flex items-center gap-2 text-primary-400 hover:text-primary-300 transition-colors mb-3"
-          >
-            <span>{showAdvancedOptions ? '▼' : '▶'}</span>
-            <span>Advanced Options</span>
-          </button>
-
-          {showAdvancedOptions && (
-            <div className={`p-4 border ${borderColor} rounded bg-opacity-50`}>
-              <div className="flex gap-2 mb-3">
-                <button
-                  onClick={selectAllTests}
-                  className="px-3 py-1 text-sm bg-primary-600 hover:bg-primary-700 rounded text-white transition-colors"
-                >
-                  Select All
-                </button>
-                <button
-                  onClick={deselectAllTests}
-                  className="px-3 py-1 text-sm bg-gray-600 hover:bg-gray-700 rounded text-white transition-colors"
-                >
-                  Deselect All
-                </button>
-                {benchmarkPreset === 'custom' && (
-                  <span className="text-yellow-500 text-sm flex items-center">
-                    ⚠ Custom selection
-                  </span>
-                )}
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-48 overflow-y-auto">
-                {availableCodecs.map(codec => (
-                  <label key={codec.name} className="flex items-center gap-2 cursor-pointer hover:bg-white/5 p-2 rounded transition-colors">
-                    <input
-                      type="checkbox"
-                      checked={enabledTests[codec.name] || false}
-                      onChange={() => toggleTest(codec.name)}
-                      className="w-4 h-4"
-                    />
-                    <span className={textColor}>{codec.name}</span>
-                  </label>
+            {/* Benchmark Presets */}
+            <div className="mb-4">
+              <p className="text-sm font-semibold text-primary-300 mb-3">Preset Configuration:</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
+                {Object.entries(BENCHMARK_PRESETS).map(([key, preset]) => (
+                  <button
+                    key={key}
+                    onClick={() => applyPreset(key)}
+                    disabled={running}
+                    className={`p-4 rounded border text-left transition-colors ${
+                      benchmarkPreset === key
+                        ? 'border-primary-500 bg-primary-500/10'
+                        : `border-gray-600 hover:border-primary-400`
+                    } disabled:opacity-50 disabled:cursor-not-allowed`}
+                  >
+                    <div className="font-semibold text-primary-300">{preset.name}</div>
+                    <div className="text-sm text-gray-500 mt-1">{preset.description}</div>
+                  </button>
                 ))}
               </div>
             </div>
-          )}
 
-          {/* Estimation Summary */}
-          <div className="mt-4 p-3 bg-blue-500/10 border border-blue-500/30 rounded">
-            <div className="text-blue-400 font-semibold">
-              {Object.values(enabledTests).filter(v => v).length} tests selected • Estimated time: {formatEstimatedTime(estimatedTime)}
-            </div>
-            <div className="text-blue-300 text-sm mt-1">
-              Actual time may vary based on your hardware performance
+            {/* Advanced Options Toggle */}
+            <button
+              onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
+              className="flex items-center gap-2 text-primary-400 hover:text-primary-300 transition-colors mb-3"
+              disabled={running}
+            >
+              <span>{showAdvancedOptions ? '▼' : '▶'}</span>
+              <span>Advanced Options</span>
+            </button>
+
+            {showAdvancedOptions && (
+              <div className={`p-4 border ${borderColor} rounded bg-opacity-50 mb-4`}>
+                <div className="flex gap-2 mb-3">
+                  <button
+                    onClick={selectAllTests}
+                    disabled={running}
+                    className="px-3 py-1 text-sm bg-primary-600 hover:bg-primary-700 rounded text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Select All
+                  </button>
+                  <button
+                    onClick={deselectAllTests}
+                    disabled={running}
+                    className="px-3 py-1 text-sm bg-gray-600 hover:bg-gray-700 rounded text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Deselect All
+                  </button>
+                  {benchmarkPreset === 'custom' && (
+                    <span className="text-yellow-500 text-sm flex items-center">
+                      ⚠ Custom selection
+                    </span>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-48 overflow-y-auto">
+                  {availableCodecs.map(codec => (
+                    <label key={codec.name} className="flex items-center gap-2 cursor-pointer hover:bg-white/5 p-2 rounded transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={enabledTests[codec.name] || false}
+                        onChange={() => toggleTest(codec.name)}
+                        disabled={running}
+                        className="w-4 h-4"
+                      />
+                      <span className={textColor}>{codec.name}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Estimation Summary */}
+            <div className="p-3 bg-blue-500/10 border border-blue-500/30 rounded mb-4">
+              <div className="text-blue-400 font-semibold">
+                {Object.values(enabledTests).filter(v => v).length} tests selected • Estimated time: {formatEstimatedTime(estimatedTime)}
+              </div>
+              <div className="text-blue-300 text-sm mt-1">
+                Actual time may vary based on your hardware performance
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
-        {/* Run Benchmark */}
-        <div className={`${cardBg} border ${borderColor} rounded-lg p-4`}>
-          <h2 className="text-xl font-semibold mb-3 text-primary-400">Step 3: Run Benchmark</h2>
-          
-          <div className="mb-4">
-            {running ? (
-              <div className="space-y-3">
-                <div className="p-4 bg-blue-500/10 border border-blue-500/30 rounded">
-                  <div className="flex justify-between items-center mb-2">
-                    <div>
-                      <p className="text-blue-400 font-semibold">Currently testing: {currentTest}</p>
-                      <p className="text-blue-300 text-sm">Progress: {testProgress + 1} of {totalTests}</p>
+        {/* Run Benchmark Button */}
+        {(benchmarkStep === 'benchmark' || benchmarkStep === 'complete') && (
+          <div className={`${cardBg} border ${borderColor} rounded-lg p-4`}>
+            <h2 className="text-xl font-semibold mb-3 text-primary-400">Step 4: Execute Benchmark</h2>
+            
+            <div className="mb-4">
+              {running ? (
+                <div className="space-y-3">
+                  <div className="p-4 bg-blue-500/10 border border-blue-500/30 rounded">
+                    <div className="flex justify-between items-center mb-2">
+                      <div>
+                        <p className="text-blue-400 font-semibold">Currently testing: {currentTest}</p>
+                        <p className="text-blue-300 text-sm">Progress: {testProgress + 1} of {totalTests}</p>
+                      </div>
+                      <button
+                        onClick={() => setCancelBenchmark(true)}
+                        className="px-3 py-1 text-sm bg-red-600 hover:bg-red-700 text-white rounded transition-colors"
+                      >
+                        Cancel
+                      </button>
                     </div>
-                    <button
-                      onClick={() => setCancelBenchmark(true)}
-                      className="px-3 py-1 text-sm bg-red-600 hover:bg-red-700 text-white rounded transition-colors"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                  <div className="w-full bg-gray-700 rounded-full h-3">
+                    <div className="w-full bg-gray-700 rounded-full h-3">
                     <div
                       className="bg-blue-500 h-3 rounded-full transition-all duration-300"
                       style={{ width: `${((testProgress + 1) / totalTests) * 100}%` }}
@@ -711,7 +860,8 @@ function Benchmark() {
               ⚠ Please select at least one codec to test
             </p>
           )}
-        </div>
+          </div>
+        )}
 
         {/* Results */}
         {results.length > 0 && (

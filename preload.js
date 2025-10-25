@@ -90,6 +90,8 @@ contextBridge.exposeInMainWorld('electron', {
   saveBenchmark: (data) => ipcRenderer.invoke('save-benchmark', data),
   loadBenchmark: (filePath) => ipcRenderer.invoke('load-benchmark', filePath),
   getSavedBenchmarks: () => ipcRenderer.invoke('get-saved-benchmarks'),
+  detectEncoders: () => ipcRenderer.invoke('detect-encoders'),
+  getDetectedEncoders: () => ipcRenderer.invoke('get-detected-encoders'),
 });
 
 console.log('Preload script completed - window.electron should be available');

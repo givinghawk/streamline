@@ -991,6 +991,210 @@ async function detectWindowsGpuMemory() {
   }
 }
 
+// Codec detection handler - tests which encoders are actually available
+ipcMain.handle('detect-encoders', async (event) => {
+  const cacheDir = path.join(app.getPath('userData'), '.streamline');
+  const cacheFile = path.join(cacheDir, 'encoder-detection-cache.json');
+  
+  // Ensure cache directory exists
+  if (!fsSync.existsSync(cacheDir)) {
+    fsSync.mkdirSync(cacheDir, { recursive: true });
+  }
+
+  try {
+    // Generate a minimal test video for detection (1 frame, very fast)
+    const tempDir = path.join(app.getPath('temp'), 'streamline-benchmark');
+    if (!fsSync.existsSync(tempDir)) {
+      fsSync.mkdirSync(tempDir, { recursive: true });
+    }
+    
+    const testVideoPath = path.join(tempDir, 'test-detection.mp4');
+    
+    // Only generate test video if it doesn't exist
+    if (!fsSync.existsSync(testVideoPath)) {
+      await new Promise((resolve, reject) => {
+        const ffmpeg = spawn('ffmpeg', [
+          '-f', 'lavfi',
+          '-i', 'color=c=blue:s=1280x720:d=0.1',
+          '-vf', 'fps=1',
+          '-c:v', 'libx264',
+          '-preset', 'ultrafast',
+          '-y',
+          testVideoPath
+        ]);
+        
+        let stderr = '';
+        ffmpeg.stderr.on('data', (data) => { stderr += data.toString(); });
+        
+        ffmpeg.on('close', (code) => {
+          if (code === 0) resolve();
+          else reject(new Error(`Failed to generate detection video: ${stderr}`));
+        });
+        
+        ffmpeg.on('error', (err) => reject(err));
+      });
+    }
+    
+    // Define all codec/platform combinations to test
+    const testsToRun = [
+      // Software encoders (always test these as baseline)
+      { codec: 'h264', hwAccel: null, name: 'H.264 (Software)' },
+      { codec: 'h265', hwAccel: null, name: 'H.265 (Software)' },
+      { codec: 'av1', hwAccel: null, name: 'AV1 (Software)' },
+      // Hardware encoders
+      { codec: 'h264', hwAccel: 'nvidia', name: 'H.264 (NVIDIA NVENC)' },
+      { codec: 'h265', hwAccel: 'nvidia', name: 'H.265 (NVIDIA NVENC)' },
+      { codec: 'av1', hwAccel: 'nvidia', name: 'AV1 (NVIDIA NVENC)' },
+      { codec: 'h264', hwAccel: 'amd', name: 'H.264 (AMD AMF)' },
+      { codec: 'h265', hwAccel: 'amd', name: 'H.265 (AMD AMF)' },
+      { codec: 'av1', hwAccel: 'amd', name: 'AV1 (AMD AMF)' },
+      { codec: 'h264', hwAccel: 'intel', name: 'H.264 (Intel QSV)' },
+      { codec: 'h265', hwAccel: 'intel', name: 'H.265 (Intel QSV)' },
+      { codec: 'av1', hwAccel: 'intel', name: 'AV1 (Intel QSV)' },
+      { codec: 'h264', hwAccel: 'apple', name: 'H.264 (Apple VideoToolbox)' },
+      { codec: 'h265', hwAccel: 'apple', name: 'H.265 (Apple VideoToolbox)' }
+    ];
+
+    const detectedEncoders = [];
+    const failedEncoders = [];
+
+    // Test each codec/platform combination
+    for (const test of testsToRun) {
+      try {
+        const outputPath = path.join(tempDir, `detection_${test.codec}_${test.hwAccel || 'sw'}_${Date.now()}.mp4`);
+        
+        // Build codec arguments
+        let codecArgs = [];
+        if (test.hwAccel === 'nvidia') {
+          if (test.codec === 'h264') codecArgs = ['-c:v', 'h264_nvenc', '-preset', 'fast'];
+          else if (test.codec === 'h265') codecArgs = ['-c:v', 'hevc_nvenc', '-preset', 'fast'];
+          else if (test.codec === 'av1') codecArgs = ['-c:v', 'av1_nvenc', '-preset', 'fast'];
+        } else if (test.hwAccel === 'amd') {
+          if (test.codec === 'h264') codecArgs = ['-c:v', 'h264_amf'];
+          else if (test.codec === 'h265') codecArgs = ['-c:v', 'hevc_amf'];
+          else if (test.codec === 'av1') codecArgs = ['-c:v', 'av1_amf'];
+        } else if (test.hwAccel === 'intel') {
+          if (test.codec === 'h264') codecArgs = ['-c:v', 'h264_qsv'];
+          else if (test.codec === 'h265') codecArgs = ['-c:v', 'hevc_qsv'];
+          else if (test.codec === 'av1') codecArgs = ['-c:v', 'av1_qsv'];
+        } else if (test.hwAccel === 'apple') {
+          if (test.codec === 'h264') codecArgs = ['-c:v', 'h264_videotoolbox'];
+          else if (test.codec === 'h265') codecArgs = ['-c:v', 'hevc_videotoolbox'];
+        } else {
+          // Software
+          if (test.codec === 'h264') codecArgs = ['-c:v', 'libx264'];
+          else if (test.codec === 'h265') codecArgs = ['-c:v', 'libx265'];
+          else if (test.codec === 'av1') codecArgs = ['-c:v', 'libaom-av1'];
+        }
+
+        const args = [
+          '-i', testVideoPath,
+          ...codecArgs,
+          '-b:v', '1M',
+          '-c:a', 'aac',
+          '-b:a', '128k',
+          '-t', '0.1',
+          '-y',
+          outputPath
+        ];
+
+        // Quick test with timeout
+        const success = await new Promise((resolve) => {
+          const timeoutId = setTimeout(() => {
+            resolve(false);
+          }, 10000); // 10 second timeout per encoder
+
+          const ffmpeg = spawn('ffmpeg', args);
+          let hasError = false;
+
+          ffmpeg.stderr.on('data', (data) => {
+            const stderr = data.toString().toLowerCase();
+            if (stderr.includes('unknown encoder') || stderr.includes('encoder') && stderr.includes('not found')) {
+              hasError = true;
+            }
+          });
+
+          ffmpeg.on('close', (code) => {
+            clearTimeout(timeoutId);
+            resolve(code === 0 && !hasError);
+          });
+
+          ffmpeg.on('error', () => {
+            clearTimeout(timeoutId);
+            resolve(false);
+          });
+        });
+
+        if (success) {
+          detectedEncoders.push({
+            name: test.name,
+            codec: test.codec,
+            hwAccel: test.hwAccel,
+            available: true,
+            timestamp: new Date().toISOString()
+          });
+        } else {
+          failedEncoders.push({
+            name: test.name,
+            codec: test.codec,
+            hwAccel: test.hwAccel,
+            available: false,
+            timestamp: new Date().toISOString()
+          });
+        }
+
+        // Clean up test output
+        if (fsSync.existsSync(outputPath)) {
+          fsSync.unlinkSync(outputPath);
+        }
+      } catch (error) {
+        console.log(`Encoder detection failed for ${test.name}: ${error.message}`);
+        failedEncoders.push({
+          name: test.name,
+          codec: test.codec,
+          hwAccel: test.hwAccel,
+          available: false,
+          error: error.message,
+          timestamp: new Date().toISOString()
+        });
+      }
+    }
+
+    // Save detection results to cache
+    const detectionResults = {
+      detectedEncoders,
+      failedEncoders,
+      totalTested: testsToRun.length,
+      detectionDate: new Date().toISOString(),
+      platform: process.platform
+    };
+
+    fsSync.writeFileSync(cacheFile, JSON.stringify(detectionResults, null, 2));
+
+    return detectionResults;
+  } catch (error) {
+    console.error('Encoder detection error:', error);
+    throw new Error(`Failed to detect encoders: ${error.message}`);
+  }
+});
+
+// Load cached encoder detection results
+ipcMain.handle('get-detected-encoders', async () => {
+  try {
+    const cacheFile = path.join(app.getPath('userData'), '.streamline', 'encoder-detection-cache.json');
+    
+    if (fsSync.existsSync(cacheFile)) {
+      const data = fsSync.readFileSync(cacheFile, 'utf-8');
+      return JSON.parse(data);
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Failed to load cached encoders:', error);
+    return null;
+  }
+});
+
 // Benchmark handlers
 ipcMain.handle('get-system-info', async () => {
   const os = require('os');
@@ -1273,12 +1477,65 @@ ipcMain.handle('download-benchmark-video', async (event, url) => {
   }
 });
 
+// Helper function to generate a minimal test video for benchmarking
+async function generateTestVideo(outputPath) {
+  return new Promise((resolve, reject) => {
+    // Generate a 2-frame test video using FFmpeg's video generation filter
+    // Output: 1280x720 video, 2 frames at 30fps (so it's about 1 second)
+    const args = [
+      '-f', 'lavfi',
+      '-i', 'color=c=blue:s=1280x720:d=0.1',  // 0.1 seconds of blue video
+      '-vf', 'fps=30',
+      '-c:v', 'libx264',  // Use software H.264 for compatibility
+      '-preset', 'ultrafast',
+      '-y',
+      outputPath
+    ];
+    
+    const ffmpeg = spawn('ffmpeg', args);
+    let stderr = '';
+    
+    ffmpeg.stderr.on('data', (data) => {
+      stderr += data.toString();
+    });
+    
+    ffmpeg.on('close', (code) => {
+      if (code === 0) {
+        console.log(`Generated test video at: ${outputPath}`);
+        resolve();
+      } else {
+        const error = stderr.split('\n').slice(-10).join('\n');
+        reject(new Error(`Failed to generate test video: ${error}`));
+      }
+    });
+    
+    ffmpeg.on('error', (err) => {
+      reject(new Error(`FFmpeg error generating test video: ${err.message}`));
+    });
+  });
+}
+
 ipcMain.handle('run-benchmark-test', async (event, options) => {
   const { inputPath, codec, hwAccel, resolution } = options;
   const outputDir = path.join(app.getPath('temp'), 'streamline-benchmark-output');
   
   if (!fsSync.existsSync(outputDir)) {
     fsSync.mkdirSync(outputDir, { recursive: true });
+  }
+  
+  // Generate a test video if inputPath is 'builtin:2frame'
+  let actualInputPath = inputPath;
+  if (inputPath === 'builtin:2frame') {
+    actualInputPath = path.join(outputDir, 'test-input-2frame.mp4');
+    
+    // Only generate if it doesn't exist
+    if (!fsSync.existsSync(actualInputPath)) {
+      try {
+        await generateTestVideo(actualInputPath);
+      } catch (genError) {
+        throw new Error(`Failed to generate test video: ${genError.message}`);
+      }
+    }
   }
   
   const outputPath = path.join(outputDir, `test_${codec}_${hwAccel || 'sw'}_${Date.now()}.mp4`);
@@ -1323,7 +1580,7 @@ ipcMain.handle('run-benchmark-test', async (event, options) => {
     }
     
     const args = [
-      '-i', inputPath,
+      '-i', actualInputPath,
       ...codecArgs,
       '-b:v', '5M',
       '-c:a', 'aac',
@@ -1338,24 +1595,8 @@ ipcMain.handle('run-benchmark-test', async (event, options) => {
     const result = await executeFFmpegBenchmark(args, outputPath, startTime, codec, hwAccel);
     return result;
   } catch (error) {
-    // If hardware acceleration failed, try software fallback
-    if (hwAccel && hwAccel !== 'software') {
-      console.warn(`Hardware acceleration (${hwAccel}) failed for ${codec}, trying software encoding...`);
-      try {
-        const softwareOptions = {
-          inputPath,
-          codec,
-          hwAccel: null,
-          resolution
-        };
-        return await new Promise((resolve, reject) => {
-          // Recursive call with no hardware acceleration
-          ipcMain.emit('benchmark-software-fallback', { resolve, reject, softwareOptions });
-        });
-      } catch (fallbackError) {
-        throw new Error(`Benchmark test failed for both hardware and software: ${error.message}`);
-      }
-    }
+    // Don't fall back for hardware acceleration - just mark it as failed
+    // This allows the UI to show which encoders don't work
     throw new Error(`Benchmark test failed: ${error.message}`);
   }
 });

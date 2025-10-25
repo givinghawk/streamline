@@ -14,11 +14,12 @@ import {
   CodeIcon,
   CheckIcon,
   CloseIcon,
+  BulbIcon,
 } from './icons/Icons';
 import PresetCreator from './PresetCreator';
 import PresetImporter from './PresetImporter';
 
-function SettingsPanel({ onClose }) {
+function SettingsPanel({ onClose, onRerunSetup }) {
   const { settings, updateSetting, customPresets, deleteCustomPreset, exportPreset } = useSettings();
   const [activeTab, setActiveTab] = useState('general');
   const [showPresetCreator, setShowPresetCreator] = useState(false);
@@ -369,6 +370,30 @@ function SettingsPanel({ onClose }) {
                         : 'You will only receive tested stable releases'}
                     </div>
                   </div>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-lg font-semibold mb-4">Help & Setup</h3>
+                <div className="space-y-4">
+                  <button
+                    onClick={() => {
+                      if (onRerunSetup) {
+                        onRerunSetup();
+                        onClose();
+                      }
+                    }}
+                    className="w-full p-4 bg-gradient-to-r from-primary-500/20 to-primary-600/20 hover:from-primary-500/30 hover:to-primary-600/30 border border-primary-500/50 rounded-lg transition-all flex items-center justify-between group"
+                  >
+                    <div className="flex items-center space-x-3">
+                      <BulbIcon className="w-5 h-5 text-primary-400 group-hover:text-primary-300" />
+                      <div className="text-left">
+                        <div className="font-medium text-white">Re-run Setup Walkthrough</div>
+                        <div className="text-xs text-gray-400">Get started with the interactive guide again</div>
+                      </div>
+                    </div>
+                    <SparklesIcon className="w-5 h-5 text-primary-400 group-hover:text-primary-300 flex-shrink-0" />
+                  </button>
                 </div>
               </div>
             </div>
