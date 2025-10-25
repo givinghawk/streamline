@@ -140,7 +140,13 @@ function Benchmark() {
       const failedEncoders = [];
 
       // Test each codec with a 2-frame test video
-      for (const test of testsToRun) {
+      for (let index = 0; index < testsToRun.length; index++) {
+        const test = testsToRun[index];
+        
+        // Update progress
+        setCurrentTest(test.name);
+        setDetectionProgress(Math.round((index / testsToRun.length) * 100));
+        
         try {
           await window.electron.runBenchmarkTest({
             inputPath: 'builtin:2frame',
@@ -165,6 +171,9 @@ function Benchmark() {
           });
         }
       }
+
+      setDetectionProgress(100);
+      setCurrentTest('');
 
       const results = {
         detectedEncoders,
@@ -194,6 +203,8 @@ function Benchmark() {
       setBenchmarkStep('idle');
     } finally {
       setDetectionRunning(false);
+      setDetectionProgress(0);
+      setCurrentTest('');
     }
   };
 
@@ -470,7 +481,22 @@ function Benchmark() {
               The benchmark will detect which encoders actually work on your system by testing all possible codec and hardware acceleration combinations. All detected encoders will be benchmarked.
             </p>
             
-            {detectionResults && (
+            {detectionRunning && (
+              <div className="mb-4 p-4 bg-blue-500/10 border border-blue-500/30 rounded">
+                <div className="mb-2">
+                  <p className="text-blue-400 font-semibold">Testing: {currentTest}</p>
+                  <p className="text-blue-300 text-sm">Progress: {detectionProgress}%</p>
+                </div>
+                <div className="w-full bg-gray-700 rounded-full h-3">
+                  <div
+                    className="bg-blue-500 h-3 rounded-full transition-all duration-300"
+                    style={{ width: `${detectionProgress}%` }}
+                  />
+                </div>
+              </div>
+            )}
+            
+            {detectionResults && !detectionRunning && (
               <div className="mb-4 space-y-3">
                 <div className={`border ${borderColor} rounded p-3 bg-green-500/10 border-green-500/30`}>
                   <p className="text-green-400 text-sm font-semibold mb-2">Detection Complete</p>
