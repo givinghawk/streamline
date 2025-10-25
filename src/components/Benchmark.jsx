@@ -939,7 +939,14 @@ function Benchmark() {
                         </td>
                         <td className="p-2">{result.hwAccel || 'Software'}</td>
                         {result.error ? (
-                          <td colSpan={5} className="p-2 text-red-400">Error: {result.error}</td>
+                          <td colSpan={5} className="p-2 text-red-400 break-words whitespace-pre-wrap text-xs">
+                            <details className="cursor-pointer">
+                              <summary className="font-semibold">Error (click to expand)</summary>
+                              <pre className="mt-2 bg-red-900/20 p-2 rounded overflow-x-auto text-red-300 text-xs">
+                                {result.error}
+                              </pre>
+                            </details>
+                          </td>
                         ) : (
                           <>
                             <td className="p-2 text-right">{formatDuration(result.duration)}</td>

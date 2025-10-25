@@ -1002,13 +1002,13 @@ ipcMain.handle('detect-encoders', async (event) => {
   }
 
   try {
-    // Generate a minimal test video for detection (1 frame, very fast)
-    const tempDir = path.join(app.getPath('temp'), 'streamline-benchmark');
-    if (!fsSync.existsSync(tempDir)) {
-      fsSync.mkdirSync(tempDir, { recursive: true });
+    // Use app userData directory to avoid DOS short name issues
+    const tempBase = path.join(app.getPath('userData'), 'benchmark-temp');
+    if (!fsSync.existsSync(tempBase)) {
+      fsSync.mkdirSync(tempBase, { recursive: true });
     }
     
-    const testVideoPath = path.join(tempDir, 'test-detection.mp4');
+    const testVideoPath = path.join(tempBase, 'test-detection.mp4');
     
     // Only generate test video if it doesn't exist
     if (!fsSync.existsSync(testVideoPath)) {
@@ -1061,7 +1061,7 @@ ipcMain.handle('detect-encoders', async (event) => {
     // Test each codec/platform combination
     for (const test of testsToRun) {
       try {
-        const outputPath = path.join(tempDir, `detection_${test.codec}_${test.hwAccel || 'sw'}_${Date.now()}.mp4`);
+        const outputPath = path.join(tempBase, `detection_${test.codec}_${test.hwAccel || 'sw'}_${Date.now()}.mp4`);
         
         // Build codec arguments
         let codecArgs = [];
@@ -1087,15 +1087,19 @@ ipcMain.handle('detect-encoders', async (event) => {
           else if (test.codec === 'av1') codecArgs = ['-c:v', 'libaom-av1'];
         }
 
+        // Use forward slashes for FFmpeg compatibility
+        const testVideoForFFmpeg = testVideoPath.replace(/\\/g, '/');
+        const outputForFFmpeg = outputPath.replace(/\\/g, '/');
+
         const args = [
-          '-i', testVideoPath,
+          '-i', testVideoForFFmpeg,
           ...codecArgs,
           '-b:v', '1M',
           '-c:a', 'aac',
           '-b:a', '128k',
           '-t', '0.1',
           '-y',
-          outputPath
+          outputForFFmpeg
         ];
 
         // Quick test with timeout
@@ -1376,15 +1380,16 @@ ipcMain.handle('get-system-info', async () => {
 });
 
 ipcMain.handle('download-benchmark-video', async (event, url) => {
-  const tempDir = path.join(app.getPath('temp'), 'streamline-benchmark');
+  // Use app userData directory to avoid DOS short name issues with temp directory
+  const benchmarkDir = path.join(app.getPath('userData'), 'benchmark-temp', 'downloads');
   
-  // Create temp directory if it doesn't exist
-  if (!fsSync.existsSync(tempDir)) {
-    fsSync.mkdirSync(tempDir, { recursive: true });
+  // Create directory if it doesn't exist
+  if (!fsSync.existsSync(benchmarkDir)) {
+    fsSync.mkdirSync(benchmarkDir, { recursive: true });
   }
 
   try {
-    const outputPath = tempDir;
+    const outputPath = benchmarkDir;
     
     return new Promise((resolve, reject) => {
       let lastProgress = 0;
@@ -1531,8 +1536,14 @@ async function generateTestVideo(outputPath) {
 
 ipcMain.handle('run-benchmark-test', async (event, options) => {
   const { inputPath, codec, hwAccel, resolution } = options;
-  const outputDir = path.join(app.getPath('temp'), 'streamline-benchmark-output');
+  // Use a simpler temp directory to avoid DOS short name issues
+  const tempBase = path.join(app.getPath('userData'), 'benchmark-temp');
+  const outputDir = path.join(tempBase, 'output');
   
+  // Ensure directories exist
+  if (!fsSync.existsSync(tempBase)) {
+    fsSync.mkdirSync(tempBase, { recursive: true });
+  }
   if (!fsSync.existsSync(outputDir)) {
     fsSync.mkdirSync(outputDir, { recursive: true });
   }
@@ -1540,7 +1551,7 @@ ipcMain.handle('run-benchmark-test', async (event, options) => {
   // Generate a test video if inputPath is 'builtin:2frame'
   let actualInputPath = inputPath;
   if (inputPath === 'builtin:2frame') {
-    actualInputPath = path.join(outputDir, 'test-input-2frame.mp4');
+    actualInputPath = path.join(tempBase, 'test-input-2frame.mp4');
     
     // Only generate if it doesn't exist
     if (!fsSync.existsSync(actualInputPath)) {
@@ -1604,19 +1615,27 @@ ipcMain.handle('run-benchmark-test', async (event, options) => {
       else if (codec === 'av1') codecArgs = ['-c:v', 'libaom-av1'];
     }
     
+    // Use forward slashes for FFmpeg compatibility, especially on Windows
+    const inputForFFmpeg = actualInputPath.replace(/\\/g, '/');
+    const outputForFFmpeg = outputPath.replace(/\\/g, '/');
+    
     const args = [
-      '-i', actualInputPath,
+      '-i', inputForFFmpeg,
       ...codecArgs,
       '-b:v', '5M',
       '-c:a', 'aac',
       '-b:a', '128k',
       '-t', '10',  // Limit to 10 seconds for faster benchmark
       '-y',
-      outputPath
+      outputForFFmpeg
     ];
     
-    console.log(`Running benchmark test: ${codec} with ${hwAccel || 'software'} acceleration`);
-    console.log(`FFmpeg command: ffmpeg ${args.join(' ')}`);
+    console.log(`\n=== Starting Benchmark Test ===`);
+    console.log(`Codec: ${codec}, Hardware: ${hwAccel || 'Software'}`);
+    console.log(`Input: ${inputForFFmpeg}`);
+    console.log(`Output: ${outputForFFmpeg}`);
+    console.log(`Command: ffmpeg ${args.join(' ')}`);
+    console.log(`=== ===\n`);
     
     const result = await executeFFmpegBenchmark(args, outputPath, startTime, codec, hwAccel);
     return result;
@@ -1632,9 +1651,14 @@ async function executeFFmpegBenchmark(args, outputPath, startTime, codec, hwAcce
   return new Promise((resolve, reject) => {
     const ffmpeg = spawn('ffmpeg', args);
     let stderr = '';
+    let stdout = '';
     
     ffmpeg.stderr.on('data', (data) => {
       stderr += data.toString();
+    });
+    
+    ffmpeg.stdout.on('data', (data) => {
+      stdout += data.toString();
     });
     
     ffmpeg.on('close', (code) => {
@@ -1661,14 +1685,37 @@ async function executeFFmpegBenchmark(args, outputPath, startTime, codec, hwAcce
           reject(new Error(`Failed to get output file stats: ${statError.message}`));
         }
       } else {
-        const lastLines = stderr.split('\n').slice(-50).join('\n');
-        console.error(`FFmpeg failed with code ${code} for ${codec} (${hwAccel || 'software'})`);
-        console.error(`Input path: ${args[args.indexOf('-i') + 1]}`);
-        console.error(`Last stderr lines:\n${lastLines}`);
+        // Get all output for debugging
+        const allOutput = stderr + '\n' + stdout;
+        const lines = allOutput.split('\n').filter(line => line.trim().length > 0);
         
-        // Return more detailed error message
-        const errorDetails = lastLines.match(/Error[^\\n]*/g)?.join('; ') || `FFmpeg error code ${code}`;
-        reject(new Error(`${errorDetails}`));
+        console.error(`FFmpeg failed with code ${code} for ${codec} (${hwAccel || 'software'})`);
+        console.error(`Last 40 lines of FFmpeg output:`);
+        lines.slice(-40).forEach((line, idx) => {
+          console.error(`  ${idx}: ${line}`);
+        });
+        
+        // Look for error/warning messages
+        let errorMessage = `Encoding failed (code ${code})`;
+        
+        // Find lines with error keywords
+        const errorLines = lines.filter(line => {
+          const lower = line.toLowerCase();
+          return /error|failed|unknown|invalid|not found|no such|cannot find|unrecognized|option/i.test(lower);
+        });
+        
+        if (errorLines.length > 0) {
+          // Get unique error messages and join them
+          const uniqueErrors = [...new Set(errorLines.map(l => l.trim()))];
+          errorMessage = uniqueErrors.slice(-2).join(' | ');
+          
+          // Limit length for display
+          if (errorMessage.length > 300) {
+            errorMessage = errorMessage.substring(0, 300) + '...';
+          }
+        }
+        
+        reject(new Error(errorMessage));
       }
       
       // Clean up output file regardless of success
@@ -1681,7 +1728,7 @@ async function executeFFmpegBenchmark(args, outputPath, startTime, codec, hwAcce
     
     ffmpeg.on('error', (err) => {
       console.error(`FFmpeg process error: ${err.message}`);
-      reject(err);
+      reject(new Error(`FFmpeg process failed: ${err.message}`));
     });
   });
 }
