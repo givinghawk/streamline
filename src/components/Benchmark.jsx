@@ -102,25 +102,8 @@ function Benchmark() {
   };
 
   const loadCachedDetection = async () => {
-    try {
-      const cached = await window.electron.getDetectedEncoders();
-      if (cached && cached.detectedEncoders) {
-        setDetectionResults(cached);
-        // Build available codecs from detected encoders
-        const codecs = buildAvailableCodecs(cached.detectedEncoders);
-        setAvailableCodecs(codecs);
-        
-        // Enable all detected encoders by default
-        const newEnabled = {};
-        codecs.forEach(codec => {
-          newEnabled[codec.name] = true;
-        });
-        setEnabledTests(newEnabled);
-        updateEstimatedTime(newEnabled);
-      }
-    } catch (error) {
-      console.error('Failed to load cached detection:', error);
-    }
+    // No longer using cached detection - user needs to run detection each time
+    // This ensures fresh results and matches the first-time setup experience
   };
 
   const runEncoderDetection = async () => {
@@ -129,7 +112,67 @@ function Benchmark() {
     setDetectionProgress(0);
 
     try {
-      const results = await window.electron.detectEncoders();
+      // Test all possible codec combinations with a 2-frame test video
+      // This matches the first-time setup experience logic
+      const testsToRun = [
+        // Software encoders (always test these as baseline)
+        { codec: 'h264', hwAccel: null, name: 'H.264 (Software)' },
+        { codec: 'h265', hwAccel: null, name: 'H.265 (Software)' },
+        { codec: 'av1', hwAccel: null, name: 'AV1 (Software)' },
+        // Hardware encoders - NVIDIA
+        { codec: 'h264', hwAccel: 'nvidia', name: 'H.264 (NVIDIA NVENC)' },
+        { codec: 'h265', hwAccel: 'nvidia', name: 'H.265 (NVIDIA NVENC)' },
+        { codec: 'av1', hwAccel: 'nvidia', name: 'AV1 (NVIDIA NVENC)' },
+        // Hardware encoders - AMD
+        { codec: 'h264', hwAccel: 'amd', name: 'H.264 (AMD AMF)' },
+        { codec: 'h265', hwAccel: 'amd', name: 'H.265 (AMD AMF)' },
+        { codec: 'av1', hwAccel: 'amd', name: 'AV1 (AMD AMF)' },
+        // Hardware encoders - Intel
+        { codec: 'h264', hwAccel: 'intel', name: 'H.264 (Intel QSV)' },
+        { codec: 'h265', hwAccel: 'intel', name: 'H.265 (Intel QSV)' },
+        { codec: 'av1', hwAccel: 'intel', name: 'AV1 (Intel QSV)' },
+        // Hardware encoders - Apple
+        { codec: 'h264', hwAccel: 'apple', name: 'H.264 (Apple VideoToolbox)' },
+        { codec: 'h265', hwAccel: 'apple', name: 'H.265 (Apple VideoToolbox)' }
+      ];
+
+      const detectedEncoders = [];
+      const failedEncoders = [];
+
+      // Test each codec with a 2-frame test video
+      for (const test of testsToRun) {
+        try {
+          await window.electron.runBenchmarkTest({
+            inputPath: 'builtin:2frame',
+            codec: test.codec,
+            hwAccel: test.hwAccel,
+            resolution: '1080p'
+          });
+          
+          detectedEncoders.push({
+            name: test.name,
+            codec: test.codec,
+            hwAccel: test.hwAccel,
+            available: true
+          });
+        } catch (error) {
+          failedEncoders.push({
+            name: test.name,
+            codec: test.codec,
+            hwAccel: test.hwAccel,
+            available: false,
+            error: error.message
+          });
+        }
+      }
+
+      const results = {
+        detectedEncoders,
+        failedEncoders,
+        totalTested: testsToRun.length,
+        detectionDate: new Date().toISOString()
+      };
+
       setDetectionResults(results);
 
       // Build available codecs from detected encoders
