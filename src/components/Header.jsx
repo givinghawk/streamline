@@ -4,7 +4,7 @@ import SettingsPanel from './SettingsPanel';
 import { useSettings } from '../contexts/SettingsContext';
 import packageJson from '../../package.json';
 
-function Header({ hardwareSupport, onStartEncode, isProcessingBatch, queueLength, onShowShortcuts }) {
+function Header({ hardwareSupport, onStartEncode, isProcessingBatch, queueLength, onShowShortcuts, onRerunSetup }) {
   const { settings } = useSettings();
   const [showSettings, setShowSettings] = useState(false);
   
@@ -139,7 +139,7 @@ function Header({ hardwareSupport, onStartEncode, isProcessingBatch, queueLength
       </header>
       
       {showSettings && (
-        <SettingsPanel onClose={() => setShowSettings(false)} />
+        <SettingsPanel onClose={() => setShowSettings(false)} onRerunSetup={onRerunSetup} />
       )}
     </>
   );

@@ -6,10 +6,12 @@ This comprehensive guide covers all the core features and workflows in Streamlin
 
 * [Interface Overview](User-Guide.md#interface-overview)
 * [Adding Files](User-Guide.md#adding-files)
+* [Analyzing Files](User-Guide.md#analyzing-files)
 * [Selecting Presets](User-Guide.md#selecting-presets)
 * [Output Settings](User-Guide.md#output-settings)
 * [Encoding Process](User-Guide.md#encoding-process)
 * [Managing the Queue](User-Guide.md#managing-the-queue)
+* [Benchmarking Performance](User-Guide.md#benchmarking-performance)
 * [Settings and Preferences](User-Guide.md#settings-and-preferences)
 
 ## Interface Overview
@@ -27,39 +29,51 @@ The Streamline interface consists of several key areas:
 
 ### Mode Tabs
 
-Streamline v0.5.0 features a tabbed interface for different workflows:
+Streamline features a tabbed interface for different workflows:
 
-**📥 Import Tab**
+**Import Tab**
 - Drag and drop files to add them to the queue
-- View basic file information
+- View basic file information and metadata
+- Browse and select files from your system
 - Build your encoding queue
 
-**⚙️ Encode Tab**
+**Encode Tab**
 - Configure encoding settings for queued files
 - Select presets and adjust advanced settings
-- Set output location and options
-- Start encoding process
+- Set output location and naming options
+- Start encoding process and monitor progress
+- View real-time encoding metrics
 
-**📊 Analysis Tab**
-- View detailed file analysis
-- See codec information, bitrate, and quality metrics
-- Analyze before encoding
+**Analysis Tab**
+- View detailed file analysis and properties
+- See codec information, bitrate, resolution, and frame rate
+- Inspect file structure and stream information
+- Preview quality metrics before encoding
 
-**✂️ Trim/Concat Tab**
+**Trim/Concat Tab**
 - Trim video clips (remove unwanted sections)
 - Concatenate multiple videos into one
-- Set start/end times with preview
+- Set precise start/end times with timeline preview
+- Re-encode trimmed or combined segments
 
-**⬇️ Download Tab**
+**Download Tab**
 - Download videos from YouTube and other sites
 - Extract audio from videos
-- Choose quality and format
+- Choose quality and format for downloads
+- Save directly to your desired location
 
-**📦 Presets Tab**
+**Presets Tab**
 - Browse preset library (built-in, custom, downloaded)
-- Create custom presets with Preset Wizard
+- Create custom presets with intuitive Preset Wizard
 - Download community presets from GitHub
-- Import/export preset files
+- Import/export preset files for sharing and backup
+
+**Benchmark Tab**
+- Test hardware encoding performance
+- Discover available hardware accelerators (NVIDIA, AMD, Intel, Apple)
+- Compare encoding speed across different codecs
+- Validate hardware encoder compatibility
+- Generate performance reports for your system
 
 ### Theme Toggle
 
@@ -362,6 +376,128 @@ The batch queue shows all files:
 
 * If enabled, click metrics button
 * View PSNR, SSIM, VMAF scores
+
+## Benchmarking Performance
+
+The Benchmark tab allows you to test encoding performance on your system, discover available hardware accelerators, and compare encoding speeds across different codecs.
+
+### Why Benchmark?
+
+Benchmarking helps you:
+
+* **Discover Hardware Encoders** - Identify which GPU accelerators are available on your system
+* **Compare Performance** - See speed differences between software and hardware encoding
+* **Validate Compatibility** - Test if hardware encoders work with different codecs
+* **Optimize Settings** - Choose the best codec/accelerator combination for your workflow
+* **Monitor System Capabilities** - Verify hardware encoding support on new hardware
+
+### Available Hardware Accelerators
+
+Streamline supports hardware acceleration from multiple vendors:
+
+* **NVIDIA NVENC** - NVIDIA GPU encoding (GeForce, Tesla, Quadro)
+* **AMD AMF** - AMD GPU encoding (Radeon)
+* **Intel QSV** - Intel Quick Sync Video (integrated and discrete GPUs)
+* **Apple VideoToolbox** - macOS native hardware encoding (Apple Silicon and Intel)
+
+### Supported Codecs
+
+The benchmark tests the following video codecs:
+
+* **H.264** - Universal codec, good quality/speed balance
+* **H.265 (HEVC)** - Better compression than H.264
+* **VP9** - Modern codec with excellent compression
+* **AV1** - Next-generation codec with best compression (slowest)
+
+### Running a Benchmark
+
+#### Step 1: Choose Test Mode
+
+When you open the Benchmark tab, select how thoroughly to test encoders:
+
+* **Test Detected Encoders Only** - Quick test of only available hardware on your system
+* **Test All Possible Codecs** - Comprehensive test of all codec/accelerator combinations
+
+#### Step 2: Start the Benchmark
+
+1. Click the "Start Benchmark" button
+2. A test video is generated automatically (2 frames, very fast)
+3. Streamline tests each codec/accelerator combination
+4. Results appear as tests complete
+
+#### Step 3: Review Results
+
+Results are organized by platform:
+
+**Status Indicators**
+* ✓ Green checkmark = Codec works with this accelerator
+* ✗ Red X = Codec not supported or failed
+* Yellow warning = Partial support
+
+**Performance Metrics**
+* **Speed** - Encoding speed (frames per second)
+* **Time** - Time taken for the test
+* **Quality** - Approximate quality rating
+
+### Understanding Benchmark Results
+
+**Green Results (Working)**
+
+Hardware accelerator fully supports this codec:
+* Safe to use this combination
+* Good for batch processing
+
+**Red Results (Failed)**
+
+Hardware accelerator doesn't support this codec or encountered an error:
+* Codec requires software fallback
+* May indicate driver issues
+* Consider updating GPU drivers
+
+**Yellow Results (Partial)**
+
+Some tests worked, others failed:
+* Check detailed error messages
+* May be temporary or driver-related
+
+### Using Benchmark Results in Your Workflow
+
+1. **Choose Fastest Codec** - Use results to select your fastest encoding option
+2. **Update Presets** - Create custom presets using working combinations
+3. **Plan Batch Jobs** - Prioritize files with fastest codec/accelerator
+4. **Troubleshoot Issues** - Red results indicate compatibility problems to investigate
+
+### Example Results Interpretation
+
+If your results show:
+* NVIDIA NVENC H.264: ✓ Fast (120 fps)
+* NVIDIA NVENC H.265: ✓ Fast (85 fps)
+* AMD AMF H.264: ✗ Failed
+* Intel QSV H.264: ✓ Medium (45 fps)
+
+**Recommendation:** Use NVIDIA NVENC H.264 for fastest encoding, or H.265 if you need better compression.
+
+### Troubleshooting Failed Hardware Tests
+
+**If all hardware tests show ✗:**
+
+1. Check that your GPU drivers are up to date
+2. Verify hardware acceleration is enabled in Settings
+3. Some codecs may not be supported by your specific GPU model
+4. Try the "Test Detected Encoders Only" mode for more accurate results
+
+**If specific codecs fail:**
+
+1. That codec may not be supported on your hardware
+2. Update GPU drivers to the latest version
+3. Some older GPUs may not support newer codecs like AV1
+
+**If benchmark hangs or crashes:**
+
+1. Close Streamline completely
+2. Update your GPU drivers
+3. Check system temperature and free disk space
+4. Restart and try again
 
 ## Settings and Preferences
 

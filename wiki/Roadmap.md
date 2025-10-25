@@ -47,9 +47,9 @@ See [CHANGELOG.md](../CHANGELOG.md) for details on current release.
 - [x] **Preset search** - Search and filter presets (v0.3.0)
 - [x] **Community presets** - Download presets from GitHub repositories (v0.3.0)
 - [x] **Advanced presets** - Conditional logic for intelligent encoding (v0.3.0)
-- [ ] **Recent files** - Quick access to recent encodes
-- [ ] **Favorites** - Mark favorite presets
-- [ ] **Undo/Redo** - Undo setting changes
+- [x] **Recent files** - Quick access to recent encodes
+- [x] **Favorites** - Mark favorite presets
+- [x] **Undo/Redo** - Undo setting changes
 
 ### v1.3.0 - Advanced Encoding
 

@@ -1,3 +1,11 @@
+  // Clear completed items from queue
+  const handleClearCompleted = () => {
+    setQueue(prevQueue => prevQueue.filter(item => item.status !== 'COMPLETED'));
+  };
+  // Remove item from queue by ID
+  const handleRemoveQueueItem = (id) => {
+    setQueue(prevQueue => prevQueue.filter(item => item.id !== id));
+  };
 import React, { useState, useEffect } from 'react';
 import DropZone from './components/DropZone';
 import PresetSelector from './components/PresetSelector';
@@ -17,35 +25,65 @@ import VideoTrimConcat from './components/VideoTrimConcat';
 import Download from './components/Download';
 import PresetManager from './components/PresetManager';
 import KeyboardShortcutsHelp from './components/KeyboardShortcutsHelp';
+import RecentFiles from './components/RecentFiles';
+import QualityValidationAlert from './components/QualityValidationAlert';
+import UndoRedoControls from './components/UndoRedoControls';
+import Benchmark from './components/Benchmark';
+import ErrorModal from './components/ErrorModal';
+import FirstTimeSetup from './components/FirstTimeSetup';
 import { useSettings } from './contexts/SettingsContext';
+import { ErrorProvider, useError } from './contexts/ErrorContext';
 import { detectFileType, filterPresetsByFileType, getRecommendedPreset } from './utils/fileTypeDetection';
 import { getThemeClasses } from './utils/themeUtils';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
+import useUndoRedo from './hooks/useUndoRedo';
+
 
 function App() {
-  const { getAllPresets, settings } = useSettings();
+  const { 
+    getAllPresets, 
+    settings, 
+    addRecentFile, 
+    validateQuality, 
+    togglePresetFavorite 
+  } = useSettings();
   const { batchMode } = settings;
   const [files, setFiles] = useState([]);
   const [selectedPreset, setSelectedPreset] = useState(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const [advancedSettings, setAdvancedSettings] = useState({});
+
+  // Use undo/redo for advanced settings
+  const {
+    state: advancedSettings,
+    updateState: setAdvancedSettings,
+    undo: undoAdvancedSettings,
+    redo: redoAdvancedSettings,
+    canUndo: canUndoAdvancedSettings,
+    canRedo: canRedoAdvancedSettings
+  } = useUndoRedo({});
+
   const [fileInfo, setFileInfo] = useState(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [hardwareSupport, setHardwareSupport] = useState(null);
   const [encoding, setEncoding] = useState(false);
   const [encodingProgress, setEncodingProgress] = useState(null);
+  const [qualityValidationResult, setQualityValidationResult] = useState(null);
   const [outputDirectory, setOutputDirectory] = useState('');
   const [showSplash, setShowSplash] = useState(true);
+  const [showFirstTimeSetup, setShowFirstTimeSetup] = useState(false);
   const [fileType, setFileType] = useState(null);
   const [overwriteFiles, setOverwriteFiles] = useState(false);
   const [currentMode, setCurrentMode] = useState('import'); // 'import', 'encode', 'analysis'
   const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
-  
+
   // Batch queue state
   const [queue, setQueue] = useState([]);
   const [isProcessingBatch, setIsProcessingBatch] = useState(false);
   const [currentQueueItemId, setCurrentQueueItemId] = useState(null);
   const [maxConcurrentJobs, setMaxConcurrentJobs] = useState(1);
+
+  // Error context
+  const { currentError, clearError, showError } = useError();
 
   // Debug: Check if Electron API is available
   useEffect(() => {
@@ -167,6 +205,22 @@ function App() {
     'ctrl+1': () => setCurrentMode('import'),
     'ctrl+2': () => setCurrentMode('encode'),
     'ctrl+3': () => setCurrentMode('analysis'),
+    'ctrl+4': () => setCurrentMode('trimconcat'),
+    'ctrl+5': () => setCurrentMode('download'),
+    'ctrl+6': () => setCurrentMode('presets'),
+    'ctrl+7': () => setCurrentMode('benchmark'),
+    
+    // Undo/Redo for advanced settings
+    'ctrl+z': () => {
+      if (canUndoAdvancedSettings) {
+        undoAdvancedSettings();
+      }
+    },
+    'ctrl+y': () => {
+      if (canRedoAdvancedSettings) {
+        redoAdvancedSettings();
+      }
+    },
     
     // Actions
     'ctrl+enter': () => {
@@ -196,11 +250,22 @@ function App() {
   const handleSplashComplete = (support) => {
     setHardwareSupport(support);
     setShowSplash(false);
+    
+    // Check if this is first time running
+    const hasRunBefore = localStorage.getItem('streamline_has_run_before');
+    if (!hasRunBefore) {
+      setShowFirstTimeSetup(true);
+      localStorage.setItem('streamline_has_run_before', 'true');
+    }
   };
 
   const handleFilesAdded = async (newFiles) => {
+    console.log('Files added:', newFiles); // Debug log
+    
     // Add files to batch queue instead of replacing
     const newQueueItems = await Promise.all(newFiles.map(async (file, index) => {
+      console.log('Processing file:', file.name, 'with path:', file.path); // Debug log
+      
       const detectedType = detectFileType(file);
       const allPresets = getAllPresets();
       const recommended = getRecommendedPreset(detectedType, allPresets, file);
@@ -209,10 +274,18 @@ function App() {
       let fileInfo = null;
       if (file.path && window.electron?.getFileInfo) {
         try {
+          console.log('Attempting to get file info for:', file.path); // Debug log
           fileInfo = await window.electron.getFileInfo(file.path);
+          console.log('File info retrieved successfully:', fileInfo); // Debug log
         } catch (error) {
-          console.error('Failed to get file info:', error);
+          console.error('Failed to get file info for', file.path, ':', error);
+          // Don't fail the entire process, just continue without file info
         }
+      } else {
+        console.warn('No file path or electron API not available:', { 
+          path: file.path, 
+          electronAPI: !!window.electron?.getFileInfo 
+        });
       }
       
       return {
@@ -239,6 +312,23 @@ function App() {
       const detectedType = detectFileType(newFiles[0]);
       setFileType(detectedType);
       await analyzeFile(newFiles[0].path);
+    }
+  };
+
+  const handleRecentFileSelect = async (filePath) => {
+    try {
+      const fileInfo = await window.electron.getFileInfo(filePath);
+      const file = {
+        path: filePath,
+        name: filePath.split('/').pop() || filePath.split('\\').pop(),
+        size: fileInfo.size || 0
+      };
+      
+      handleFilesAdded([file]);
+      setCurrentMode('encode'); // Switch to encode mode
+    } catch (error) {
+      console.error('Error selecting recent file:', error);
+      alert('Error loading recent file. The file may have been moved or deleted.');
     }
   };
 
@@ -356,10 +446,22 @@ function App() {
           )
         );
 
+        // Add to recent files
+        addRecentFile(inputPath, outputPath, item.preset.name);
+
+        // Validate quality if enabled
+        if (qualityMetrics && settings.enableQualityValidation) {
+          const validation = validateQuality(qualityMetrics);
+          if (!validation.isValid) {
+            setQualityValidationResult(validation);
+          }
+        }
+
         console.log('Encoding completed:', result);
       } catch (error) {
         console.error('Encoding failed for item:', item.id, error);
-        
+        // Show error modal
+        showError(error, { queueItemId: item.id });
         // Update status to failed
         setQueue(prevQueue => 
           prevQueue.map(q => 
@@ -393,21 +495,14 @@ function App() {
   };
 
   const getFileSize = async (filePath) => {
+    if (!filePath || !window.electron || !window.electron.getFileStats) return null;
     try {
       const stats = await window.electron.getFileStats(filePath);
-      return stats.size;
+      return typeof stats.size === 'number' ? stats.size : null;
     } catch (error) {
       console.error('Failed to get file size:', error);
       return null;
     }
-  };
-
-  const handleRemoveQueueItem = (itemId) => {
-    setQueue(prevQueue => prevQueue.filter(item => item.id !== itemId));
-  };
-
-  const handleClearCompleted = () => {
-    setQueue(prevQueue => prevQueue.filter(item => item.status !== QueueStatus.COMPLETED));
   };
 
   const handleSaveQueue = async () => {
@@ -508,6 +603,22 @@ function App() {
       });
 
       if (filePath) {
+        // Sanitize queue items to avoid non-serializable objects
+        const safeItems = queue.map(item => {
+          return {
+            fileName: item.file?.name || '',
+            filePath: item.file?.path || '',
+            status: item.status,
+            preset: typeof item.preset === 'object' ? (item.preset?.name || 'Custom') : String(item.preset),
+            originalSize: typeof item.originalSize === 'number' ? item.originalSize : null,
+            compressedSize: typeof item.compressedSize === 'number' ? item.compressedSize : null,
+            savings: (typeof item.originalSize === 'number' && typeof item.compressedSize === 'number' && item.compressedSize)
+              ? ((item.originalSize - item.compressedSize) / item.originalSize * 100).toFixed(1)
+              : null,
+            qualityMetrics: item.qualityMetrics && typeof item.qualityMetrics === 'object' ? JSON.parse(JSON.stringify(item.qualityMetrics)) : null,
+            error: typeof item.error === 'string' ? item.error : (item.error ? JSON.stringify(item.error) : null),
+          };
+        });
         await window.electron.saveReport(filePath, {
           reportType: 'queue',
           totalItems: queue.length,
@@ -517,17 +628,7 @@ function App() {
           totalCompressedSize,
           spaceSaved,
           compressionRatio,
-          items: queue.map(item => ({
-            fileName: item.file.name,
-            filePath: item.file.path,
-            status: item.status,
-            preset: item.preset?.name || 'Custom',
-            originalSize: item.originalSize,
-            compressedSize: item.compressedSize,
-            savings: item.compressedSize ? ((item.originalSize - item.compressedSize) / item.originalSize * 100).toFixed(1) : null,
-            qualityMetrics: item.qualityMetrics,
-            error: item.error,
-          })),
+          items: safeItems,
           settings: {
             overwriteFiles,
             outputDirectory,
@@ -790,6 +891,21 @@ function App() {
     );
   }
 
+  if (showFirstTimeSetup) {
+    return (
+      <div className={settings.theme === 'light' ? 'light' : 'dark'}>
+        <div className={themeClasses.container}>
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <FirstTimeSetup 
+              onComplete={() => setShowFirstTimeSetup(false)}
+              isResetup={false}
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={settings.theme === 'light' ? 'light' : 'dark'}>
       <div className={themeClasses.container}>
@@ -801,6 +917,7 @@ function App() {
             isProcessingBatch={isProcessingBatch}
             queueLength={queue.length}
             onShowShortcuts={() => setShowShortcutsHelp(true)}
+            onRerunSetup={() => setShowFirstTimeSetup(true)}
           />
           <ModeTabs currentMode={currentMode} onModeChange={setCurrentMode} />
         </div>
@@ -819,6 +936,8 @@ function App() {
           <Download />
         ) : currentMode === 'presets' ? (
           <PresetManager />
+        ) : currentMode === 'benchmark' ? (
+          <Benchmark />
         ) : currentMode === 'import' ? (
           /* Import Mode - Just drop zone and basic info */
           <div className="space-y-6">
@@ -830,6 +949,12 @@ function App() {
                 isAnalyzing={isAnalyzing}
               />
             )}
+
+            {/* Recent Files */}
+            <RecentFiles 
+              onFileSelect={handleRecentFileSelect}
+              className="mt-6"
+            />
 
             {/* Batch Queue */}
             {queue.length > 0 && (
@@ -921,13 +1046,24 @@ function App() {
             />
 
             <div className="card">
-              <button
-                onClick={() => setShowAdvanced(!showAdvanced)}
-                className="w-full text-left flex items-center justify-between"
-              >
-                <span className="font-semibold">Advanced Settings</span>
-                <span className="text-2xl">{showAdvanced ? '−' : '+'}</span>
-              </button>
+              <div className="flex items-center justify-between">
+                <button
+                  onClick={() => setShowAdvanced(!showAdvanced)}
+                  className="flex items-center justify-between flex-1"
+                >
+                  <span className="font-semibold">Advanced Settings</span>
+                  <span className="text-2xl">{showAdvanced ? '−' : '+'}</span>
+                </button>
+                {showAdvanced && (
+                  <UndoRedoControls
+                    onUndo={undoAdvancedSettings}
+                    onRedo={redoAdvancedSettings}
+                    canUndo={canUndoAdvancedSettings}
+                    canRedo={canRedoAdvancedSettings}
+                    className="ml-4"
+                  />
+                )}
+              </div>
             </div>
 
             {showAdvanced && (
@@ -938,6 +1074,14 @@ function App() {
                 selectedPreset={selectedPreset}
                 fileType={fileType}
                 fileInfo={fileInfo}
+              />
+            )}
+
+            {/* Quality Validation Alert */}
+            {qualityValidationResult && !qualityValidationResult.isValid && (
+              <QualityValidationAlert 
+                validationResult={qualityValidationResult}
+                className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800"
               />
             )}
 

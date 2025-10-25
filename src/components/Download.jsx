@@ -57,7 +57,7 @@ function Download() {
 
     try {
       // Listen for progress updates
-      const unsubscribe = window.electron.onDownloadProgress((data) => {
+      window.electron.onDownloadProgress((data) => {
         setProgress(data.progress);
         setStatus(data.status);
       });
@@ -72,7 +72,7 @@ function Download() {
       setStatus(`Download complete! Saved to ${result.filePath}`);
       setUrl('');
       setVideoInfo(null);
-      unsubscribe();
+      window.electron.removeDownloadProgressListener();
     } catch (err) {
       setError(`Download failed: ${err.message}`);
     } finally {
@@ -121,7 +121,7 @@ function Download() {
                 type="text"
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
-                placeholder="Enter YouTube, Vimeo, or other video URL..."
+                placeholder="Enter Soundcloud, Vimeo, or other video URL..."
                 className={`flex-1 px-4 py-3 rounded-lg border ${borderColor} ${inputBg} ${textColor}`}
                 onKeyPress={(e) => e.key === 'Enter' && handleGetInfo()}
               />

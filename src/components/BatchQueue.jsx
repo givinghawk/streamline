@@ -69,14 +69,15 @@ function BatchQueue({ queue, onRemoveItem, onClearCompleted, onStartBatch, isPro
   };
 
   const formatFileSize = (bytes) => {
-    if (!bytes) return 'N/A';
+    if (typeof bytes !== 'number' || isNaN(bytes) || bytes < 0) return 'N/A';
+    if (bytes === 0) return '0 B';
     const sizes = ['B', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(1024));
     return `${(bytes / Math.pow(1024, i)).toFixed(2)} ${sizes[i]}`;
   };
 
   const calculateSavings = (original, compressed) => {
-    if (!original || !compressed) return null;
+    if (typeof original !== 'number' || typeof compressed !== 'number' || isNaN(original) || isNaN(compressed) || original <= 0 || compressed < 0) return null;
     const saved = original - compressed;
     const percent = ((saved / original) * 100).toFixed(1);
     return { saved, percent };
@@ -87,10 +88,10 @@ function BatchQueue({ queue, onRemoveItem, onClearCompleted, onStartBatch, isPro
   const completedCount = queue.filter(item => item.status === QueueStatus.COMPLETED).length;
   const failedCount = queue.filter(item => item.status === QueueStatus.FAILED).length;
 
-  const totalOriginalSize = queue.reduce((sum, item) => sum + (item.originalSize || 0), 0);
+  const totalOriginalSize = queue.reduce((sum, item) => sum + (typeof item.originalSize === 'number' && !isNaN(item.originalSize) ? item.originalSize : 0), 0);
   const totalCompressedSize = queue
     .filter(item => item.status === QueueStatus.COMPLETED)
-    .reduce((sum, item) => sum + (item.compressedSize || 0), 0);
+    .reduce((sum, item) => sum + (typeof item.compressedSize === 'number' && !isNaN(item.compressedSize) ? item.compressedSize : 0), 0);
 
   return (
     <div className="card">
@@ -201,10 +202,12 @@ function BatchQueue({ queue, onRemoveItem, onClearCompleted, onStartBatch, isPro
               <div className="text-gray-400 mb-1">Total Saved</div>
               <div className="text-lg font-semibold text-green-400">
                 {formatFileSize(totalOriginalSize - totalCompressedSize)}
-                {totalOriginalSize > 0 && (
+                {totalOriginalSize > 0 && typeof totalCompressedSize === 'number' && !isNaN(totalCompressedSize) ? (
                   <span className="text-sm ml-2">
                     ({(((totalOriginalSize - totalCompressedSize) / totalOriginalSize) * 100).toFixed(1)}%)
                   </span>
+                ) : (
+                  <span className="text-sm ml-2">(N/A)</span>
                 )}
               </div>
             </div>

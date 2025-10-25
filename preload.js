@@ -1,4 +1,4 @@
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer, webUtils } = require('electron');
 
 console.log('Preload script starting...');
 
@@ -9,6 +9,8 @@ contextBridge.exposeInMainWorld('electron', {
   encodeFile: (options) => ipcRenderer.invoke('encode-file', options),
   selectOutputDirectory: () => ipcRenderer.invoke('select-output-directory'),
   checkFileExists: (filePath) => ipcRenderer.invoke('check-file-exists', filePath),
+  // File path utilities
+  getPathForFile: (file) => webUtils.getPathForFile(file),
   onEncodingProgress: (callback) => {
     ipcRenderer.on('encoding-progress', (event, progress) => callback(progress));
   },
@@ -81,6 +83,15 @@ contextBridge.exposeInMainWorld('electron', {
   removeDownloadProgressListener: () => {
     ipcRenderer.removeAllListeners('download-progress');
   },
+  // Benchmark
+  getSystemInfo: () => ipcRenderer.invoke('get-system-info'),
+  downloadBenchmarkVideo: (url) => ipcRenderer.invoke('download-benchmark-video', url),
+  runBenchmarkTest: (options) => ipcRenderer.invoke('run-benchmark-test', options),
+  saveBenchmark: (data) => ipcRenderer.invoke('save-benchmark', data),
+  loadBenchmark: (filePath) => ipcRenderer.invoke('load-benchmark', filePath),
+  getSavedBenchmarks: () => ipcRenderer.invoke('get-saved-benchmarks'),
+  detectEncoders: () => ipcRenderer.invoke('detect-encoders'),
+  getDetectedEncoders: () => ipcRenderer.invoke('get-detected-encoders'),
 });
 
 console.log('Preload script completed - window.electron should be available');
