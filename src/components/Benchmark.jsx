@@ -32,7 +32,6 @@ function Benchmark() {
   const { settings } = useSettings();
   const [selectedVideo, setSelectedVideo] = useState(TEST_VIDEOS[0]);
   const [downloadedPath, setDownloadedPath] = useState(null);
-  const [hardwareSupport, setHardwareSupport] = useState(null);
   const [downloading, setDownloading] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState(0);
   const [running, setRunning] = useState(false);
@@ -64,10 +63,6 @@ function Benchmark() {
     loadSavedBenchmarks();
     loadCachedDetection();
   }, []);
-
-  const loadHardwareSupport = async () => {
-    // This function is no longer used - encoder detection is done via detectEncoders()
-  };
 
   const buildAvailableCodecs = (detectedEncoders) => {
     // Build codec list from actually detected encoders
