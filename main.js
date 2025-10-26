@@ -1773,25 +1773,93 @@ async function executeFFmpegBenchmark(args, outputPath, startTime, codec, hwAcce
       stdout += data.toString();
     });
     
-    ffmpeg.on('close', (code) => {
+    ffmpeg.on('close', async (code) => {
       if (code === 0) {
         const endTime = Date.now();
         const duration = (endTime - startTime) / 1000; // in seconds
         
-        // Parse FFmpeg output for stats
-        const fpsMatch = stderr.match(/fps=\s*(\d+\.?\d*)/);
-        const speedMatch = stderr.match(/speed=\s*(\d+\.?\d*)x/);
+        // Parse FFmpeg output for final stats (use last occurrence)
+        const allFpsMatches = stderr.match(/fps=\s*(\d+\.?\d*)/g);
+        const finalFps = allFpsMatches && allFpsMatches.length > 0 
+          ? parseFloat(allFpsMatches[allFpsMatches.length - 1].match(/\d+\.?\d*/)[0]) 
+          : 0;
+        
+        const allSpeedMatches = stderr.match(/speed=\s*(\d+\.?\d*)x/g);
+        const finalSpeed = allSpeedMatches && allSpeedMatches.length > 0
+          ? parseFloat(allSpeedMatches[allSpeedMatches.length - 1].match(/\d+\.?\d*/)[0])
+          : (duration > 0 ? 1 : 0);
         
         try {
           const stats = fsSync.statSync(outputPath);
           
+          // Validate and analyze the output video with ffprobe
+          let videoInfo = null;
+          let isPlayable = false;
+          let qualityMetrics = {};
+          
+          try {
+            videoInfo = await new Promise((resolveProbe, rejectProbe) => {
+              const ffprobe = spawn('ffprobe', [
+                '-v', 'quiet',
+                '-print_format', 'json',
+                '-show_format',
+                '-show_streams',
+                outputPath
+              ]);
+              
+              let probeOutput = '';
+              ffprobe.stdout.on('data', (data) => {
+                probeOutput += data.toString();
+              });
+              
+              ffprobe.on('close', (probeCode) => {
+                if (probeCode === 0 && probeOutput) {
+                  try {
+                    const info = JSON.parse(probeOutput);
+                    resolveProbe(info);
+                  } catch (e) {
+                    rejectProbe(e);
+                  }
+                } else {
+                  rejectProbe(new Error('ffprobe failed'));
+                }
+              });
+              
+              ffprobe.on('error', rejectProbe);
+            });
+            
+            isPlayable = true;
+            
+            // Extract quality metrics
+            const videoStream = videoInfo.streams?.find(s => s.codec_type === 'video');
+            if (videoStream) {
+              qualityMetrics = {
+                width: videoStream.width,
+                height: videoStream.height,
+                codecName: videoStream.codec_name,
+                profile: videoStream.profile,
+                pixelFormat: videoStream.pix_fmt,
+                bitRate: parseInt(videoStream.bit_rate) || 0,
+                frameRate: eval(videoStream.r_frame_rate) || 0, // e.g., "30/1" -> 30
+                duration: parseFloat(videoInfo.format?.duration) || 0,
+                totalFrames: parseInt(videoStream.nb_frames) || 0
+              };
+            }
+          } catch (probeError) {
+            console.error(`ffprobe validation failed for ${outputPath}:`, probeError.message);
+            isPlayable = false;
+          }
+          
           resolve({
             success: true,
             duration,
-            fps: fpsMatch ? parseFloat(fpsMatch[1]) : 0,
-            speed: speedMatch ? parseFloat(speedMatch[1]) : duration > 0 ? 1 : 0,
+            fps: finalFps,
+            speed: finalSpeed,
             fileSize: stats.size,
-            bitrate: (stats.size * 8) / duration, // bits per second
+            bitrate: (stats.size * 8) / (duration > 0 ? duration : 1), // bits per second
+            outputPath,  // Keep the path for later validation/archiving
+            isPlayable,
+            qualityMetrics
           });
         } catch (statError) {
           reject(new Error(`Failed to get output file stats: ${statError.message}`));
@@ -1829,13 +1897,6 @@ async function executeFFmpegBenchmark(args, outputPath, startTime, codec, hwAcce
         
         reject(new Error(errorMessage));
       }
-      
-      // Clean up output file regardless of success
-      try {
-        fsSync.unlinkSync(outputPath);
-      } catch (e) {
-        // File might not exist or already deleted, that's ok
-      }
     });
     
     ffmpeg.on('error', (err) => {
@@ -1864,6 +1925,113 @@ ipcMain.handle('save-benchmark', async (event, benchmarkData) => {
     return null;
   } catch (error) {
     throw new Error(`Failed to save benchmark: ${error.message}`);
+  }
+});
+
+// Save benchmark as .slreport format (for web comparison)
+ipcMain.handle('save-benchmark-report', async (event, benchmarkData) => {
+  try {
+    const filePath = await dialog.showSaveDialog(mainWindow, {
+      title: 'Save Benchmark Report',
+      defaultPath: `benchmark_report_${new Date().toISOString().replace(/:/g, '-')}.slreport`,
+      filters: [
+        { name: 'Streamline Report', extensions: ['slreport'] },
+        { name: 'JSON Files', extensions: ['json'] },
+        { name: 'All Files', extensions: ['*'] }
+      ]
+    });
+
+    if (filePath.filePath) {
+      await fs.writeFile(filePath.filePath, JSON.stringify(benchmarkData, null, 2));
+      return filePath.filePath;
+    }
+    
+    return null;
+  } catch (error) {
+    throw new Error(`Failed to save benchmark report: ${error.message}`);
+  }
+});
+
+// Archive benchmark results with video files in a ZIP
+ipcMain.handle('archive-benchmark-with-videos', async (event, { benchmarkData, videoPaths }) => {
+  try {
+    const archiver = require('archiver');
+    
+    const filePath = await dialog.showSaveDialog(mainWindow, {
+      title: 'Save Benchmark Archive',
+      defaultPath: `benchmark_archive_${new Date().toISOString().replace(/:/g, '-')}.zip`,
+      filters: [
+        { name: 'ZIP Archive', extensions: ['zip'] },
+        { name: 'All Files', extensions: ['*'] }
+      ]
+    });
+
+    if (!filePath.filePath) {
+      return null;
+    }
+
+    return new Promise((resolve, reject) => {
+      const output = fsSync.createWriteStream(filePath.filePath);
+      const archive = archiver('zip', { zlib: { level: 9 } });
+
+      output.on('close', () => {
+        resolve({
+          success: true,
+          filePath: filePath.filePath,
+          size: archive.pointer()
+        });
+      });
+
+      archive.on('error', (err) => {
+        reject(err);
+      });
+
+      archive.pipe(output);
+
+      // Add benchmark data as JSON
+      archive.append(JSON.stringify(benchmarkData, null, 2), { name: 'benchmark.slbench' });
+      archive.append(JSON.stringify(benchmarkData, null, 2), { name: 'benchmark.slreport' });
+
+      // Add video files
+      videoPaths.forEach((videoPath, index) => {
+        if (fsSync.existsSync(videoPath)) {
+          const fileName = path.basename(videoPath);
+          archive.file(videoPath, { name: `videos/${fileName}` });
+        }
+      });
+
+      archive.finalize();
+    });
+  } catch (error) {
+    throw new Error(`Failed to create archive: ${error.message}`);
+  }
+});
+
+// Clean up benchmark video files
+ipcMain.handle('cleanup-benchmark-videos', async (event, videoPaths) => {
+  try {
+    let deletedCount = 0;
+    let failedCount = 0;
+
+    for (const videoPath of videoPaths) {
+      try {
+        if (fsSync.existsSync(videoPath)) {
+          fsSync.unlinkSync(videoPath);
+          deletedCount++;
+        }
+      } catch (err) {
+        console.error(`Failed to delete ${videoPath}:`, err.message);
+        failedCount++;
+      }
+    }
+
+    return {
+      success: true,
+      deleted: deletedCount,
+      failed: failedCount
+    };
+  } catch (error) {
+    throw new Error(`Failed to cleanup videos: ${error.message}`);
   }
 });
 

@@ -60,6 +60,8 @@ function Benchmark() {
   const [detectionRunning, setDetectionRunning] = useState(false);
   const [detectionProgress, setDetectionProgress] = useState(0);
   const [currentBenchmarkProgress, setCurrentBenchmarkProgress] = useState(null);
+  const [showCompletionModal, setShowCompletionModal] = useState(false);
+  const [benchmarkVideoPaths, setBenchmarkVideoPaths] = useState([]);
 
   const bgColor = settings.theme === 'dark' ? 'bg-surface' : 'bg-white';
   const borderColor = settings.theme === 'dark' ? 'border-gray-700' : 'border-gray-200';
@@ -275,6 +277,7 @@ function Benchmark() {
     setCancelBenchmark(false);
     setResults([]);
     setBenchmarkStep('benchmarking');
+    setBenchmarkVideoPaths([]);
 
     // Set up benchmark progress listener
     window.electron.onBenchmarkProgress((data) => {
@@ -299,6 +302,7 @@ function Benchmark() {
     const testsToRun = availableCodecs.filter(codec => enabledTests[codec.name]);
     setTotalTests(testsToRun.length);
     const benchmarkResults = [];
+    const videoPaths = [];
 
     for (let index = 0; index < testsToRun.length; index++) {
       // Check if user clicked cancel
@@ -327,6 +331,11 @@ function Benchmark() {
           timestamp: new Date().toISOString()
         });
 
+        // Collect video paths for later archiving/cleanup
+        if (result.outputPath) {
+          videoPaths.push(result.outputPath);
+        }
+
         setResults([...benchmarkResults]);
       } catch (error) {
         console.error(`Benchmark failed for ${codecTest.name}:`, error);
@@ -341,6 +350,7 @@ function Benchmark() {
     }
 
     window.electron.removeBenchmarkProgressListener();
+    setBenchmarkVideoPaths(videoPaths);
     setRunning(false);
     setCurrentTest(null);
     setTestProgress(0);
@@ -348,6 +358,9 @@ function Benchmark() {
     setCancelBenchmark(false);
     setCurrentBenchmarkProgress(null);
     setBenchmarkStep('complete');
+    
+    // Show completion modal
+    setShowCompletionModal(true);
   };
 
   const toggleTest = (testName) => {
@@ -391,10 +404,76 @@ function Benchmark() {
         timestamp: new Date().toISOString()
       });
 
-      alert(`Benchmark saved to ${filePath}`);
-      loadSavedBenchmarks();
+      if (filePath) {
+        alert(`Benchmark saved to ${filePath}`);
+        loadSavedBenchmarks();
+      }
     } catch (error) {
       alert(`Failed to save benchmark: ${error.message}`);
+    }
+  };
+
+  const saveBenchmarkReport = async () => {
+    if (results.length === 0) {
+      alert('No benchmark results to save');
+      return;
+    }
+
+    try {
+      const filePath = await window.electron.saveBenchmarkReport({
+        results,
+        systemInfo,
+        testVideo: selectedVideo,
+        timestamp: new Date().toISOString()
+      });
+
+      if (filePath) {
+        alert(`Benchmark report saved to ${filePath}`);
+      }
+    } catch (error) {
+      alert(`Failed to save benchmark report: ${error.message}`);
+    }
+  };
+
+  const archiveBenchmarkWithVideos = async () => {
+    if (results.length === 0 || benchmarkVideoPaths.length === 0) {
+      alert('No benchmark results or videos to archive');
+      return;
+    }
+
+    try {
+      const result = await window.electron.archiveBenchmarkWithVideos({
+        benchmarkData: {
+          results,
+          systemInfo,
+          testVideo: selectedVideo,
+          timestamp: new Date().toISOString()
+        },
+        videoPaths: benchmarkVideoPaths
+      });
+
+      if (result) {
+        alert(`Benchmark archive saved to ${result.filePath} (${(result.size / 1024 / 1024).toFixed(2)} MB)`);
+      }
+    } catch (error) {
+      alert(`Failed to create archive: ${error.message}`);
+    }
+  };
+
+  const cleanupBenchmarkVideos = async () => {
+    if (benchmarkVideoPaths.length === 0) {
+      alert('No videos to cleanup');
+      return;
+    }
+
+    try {
+      const result = await window.electron.cleanupBenchmarkVideos(benchmarkVideoPaths);
+      if (result.success) {
+        alert(`Cleaned up ${result.deleted} video(s)`);
+        setBenchmarkVideoPaths([]);
+      }
+    } catch (error) {
+      alert(`Failed to cleanup videos: ${error.message}`);
     }
   };
 
@@ -1063,6 +1142,125 @@ function Benchmark() {
           </div>
         )}
       </div>
+
+      {/* Completion Modal */}
+      {showCompletionModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className={`${cardBg} border ${borderColor} rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto`}>
+            <div className="p-6">
+              <h2 className="text-2xl font-bold text-primary-400 mb-4">Benchmark Complete!</h2>
+              
+              <div className="mb-6 space-y-3">
+                <div className={`p-4 bg-green-500/10 border border-green-500/30 rounded`}>
+                  <p className="text-green-400 font-semibold mb-2">Results Summary</p>
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div>
+                      <span className="text-gray-400">Total tests:</span>
+                      <span className="ml-2 font-semibold text-green-300">{results.length}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-400">Successful:</span>
+                      <span className="ml-2 font-semibold text-green-300">{results.filter(r => !r.error).length}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-400">Failed:</span>
+                      <span className="ml-2 font-semibold text-red-400">{results.filter(r => r.error).length}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-400">Playable videos:</span>
+                      <span className="ml-2 font-semibold text-green-300">{results.filter(r => r.isPlayable).length}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {results.some(r => !r.isPlayable && !r.error) && (
+                  <div className={`p-4 bg-yellow-500/10 border border-yellow-500/30 rounded`}>
+                    <p className="text-yellow-400 font-semibold mb-2">⚠️ Warning</p>
+                    <p className="text-yellow-300 text-sm">
+                      Some videos encoded successfully but may not be playable. This could indicate codec compatibility issues.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-3">
+                <h3 className="font-semibold text-primary-300 mb-2">Save Options</h3>
+                
+                <button
+                  onClick={async () => {
+                    await saveBenchmark();
+                  }}
+                  className="w-full px-4 py-3 bg-primary-600 hover:bg-primary-700 rounded text-white transition-colors text-left flex items-center gap-3"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                  </svg>
+                  <div>
+                    <div className="font-semibold">Save .slbench file</div>
+                    <div className="text-sm opacity-80">Save benchmark data for later analysis</div>
+                  </div>
+                </button>
+
+                <button
+                  onClick={async () => {
+                    await saveBenchmarkReport();
+                  }}
+                  className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 rounded text-white transition-colors text-left flex items-center gap-3"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  <div>
+                    <div className="font-semibold">Save .slreport file</div>
+                    <div className="text-sm opacity-80">Save report for web comparison system</div>
+                  </div>
+                </button>
+
+                <button
+                  onClick={async () => {
+                    await archiveBenchmarkWithVideos();
+                  }}
+                  className="w-full px-4 py-3 bg-purple-600 hover:bg-purple-700 rounded text-white transition-colors text-left flex items-center gap-3"
+                  disabled={benchmarkVideoPaths.length === 0}
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                  </svg>
+                  <div>
+                    <div className="font-semibold">Save archive with videos</div>
+                    <div className="text-sm opacity-80">Create ZIP archive with benchmark data and encoded videos</div>
+                  </div>
+                </button>
+
+                <button
+                  onClick={async () => {
+                    await cleanupBenchmarkVideos();
+                  }}
+                  className="w-full px-4 py-3 bg-red-600 hover:bg-red-700 rounded text-white transition-colors text-left flex items-center gap-3"
+                  disabled={benchmarkVideoPaths.length === 0}
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                  <div>
+                    <div className="font-semibold">Cleanup video files</div>
+                    <div className="text-sm opacity-80">Delete all encoded benchmark videos ({benchmarkVideoPaths.length} files)</div>
+                  </div>
+                </button>
+              </div>
+
+              <div className="mt-6 flex justify-end gap-3">
+                <button
+                  onClick={() => setShowCompletionModal(false)}
+                  className="px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded text-white transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
