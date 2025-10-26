@@ -1002,13 +1002,13 @@ ipcMain.handle('detect-encoders', async (event) => {
   }
 
   try {
-    // Generate a minimal test video for detection (1 frame, very fast)
-    const tempDir = path.join(app.getPath('temp'), 'streamline-benchmark');
-    if (!fsSync.existsSync(tempDir)) {
-      fsSync.mkdirSync(tempDir, { recursive: true });
+    // Use app userData directory to avoid DOS short name issues
+    const tempBase = path.join(app.getPath('userData'), 'benchmark-temp');
+    if (!fsSync.existsSync(tempBase)) {
+      fsSync.mkdirSync(tempBase, { recursive: true });
     }
     
-    const testVideoPath = path.join(tempDir, 'test-detection.mp4');
+    const testVideoPath = path.join(tempBase, 'test-detection.mp4');
     
     // Only generate test video if it doesn't exist
     if (!fsSync.existsSync(testVideoPath)) {
@@ -1061,7 +1061,7 @@ ipcMain.handle('detect-encoders', async (event) => {
     // Test each codec/platform combination
     for (const test of testsToRun) {
       try {
-        const outputPath = path.join(tempDir, `detection_${test.codec}_${test.hwAccel || 'sw'}_${Date.now()}.mp4`);
+        const outputPath = path.join(tempBase, `detection_${test.codec}_${test.hwAccel || 'sw'}_${Date.now()}.mp4`);
         
         // Build codec arguments
         let codecArgs = [];
@@ -1087,15 +1087,19 @@ ipcMain.handle('detect-encoders', async (event) => {
           else if (test.codec === 'av1') codecArgs = ['-c:v', 'libaom-av1'];
         }
 
+        // Use forward slashes for FFmpeg compatibility
+        const testVideoForFFmpeg = testVideoPath.replace(/\\/g, '/');
+        const outputForFFmpeg = outputPath.replace(/\\/g, '/');
+
         const args = [
-          '-i', testVideoPath,
+          '-i', testVideoForFFmpeg,
           ...codecArgs,
           '-b:v', '1M',
           '-c:a', 'aac',
           '-b:a', '128k',
           '-t', '0.1',
           '-y',
-          outputPath
+          outputForFFmpeg
         ];
 
         // Quick test with timeout
@@ -1376,15 +1380,16 @@ ipcMain.handle('get-system-info', async () => {
 });
 
 ipcMain.handle('download-benchmark-video', async (event, url) => {
-  const tempDir = path.join(app.getPath('temp'), 'streamline-benchmark');
+  // Use app userData directory to avoid DOS short name issues with temp directory
+  const benchmarkDir = path.join(app.getPath('userData'), 'benchmark-temp', 'downloads');
   
-  // Create temp directory if it doesn't exist
-  if (!fsSync.existsSync(tempDir)) {
-    fsSync.mkdirSync(tempDir, { recursive: true });
+  // Create directory if it doesn't exist
+  if (!fsSync.existsSync(benchmarkDir)) {
+    fsSync.mkdirSync(benchmarkDir, { recursive: true });
   }
 
   try {
-    const outputPath = tempDir;
+    const outputPath = benchmarkDir;
     
     return new Promise((resolve, reject) => {
       let lastProgress = 0;
@@ -1410,6 +1415,7 @@ ipcMain.handle('download-benchmark-video', async (event, url) => {
           if (progress > lastProgress) {
             lastProgress = progress;
             mainWindow.webContents.send('download-progress', {
+              url,
               progress,
               status: `Downloading benchmark video... ${progress}%`,
             });
@@ -1431,6 +1437,7 @@ ipcMain.handle('download-benchmark-video', async (event, url) => {
           if (progress > lastProgress) {
             lastProgress = progress;
             mainWindow.webContents.send('download-progress', {
+              url,
               progress,
               status: `Downloading benchmark video... ${progress}%`,
             });
@@ -1491,11 +1498,38 @@ ipcMain.handle('download-benchmark-video', async (event, url) => {
   }
 });
 
-// Helper function to generate a minimal test video for benchmarking
+// Handler to generate built-in benchmark test video
+ipcMain.handle('generate-benchmark-video', async (event) => {
+  try {
+    const benchmarkDir = path.join(app.getPath('userData'), 'benchmark-temp', 'builtin');
+    
+    // Create directory if it doesn't exist
+    if (!fsSync.existsSync(benchmarkDir)) {
+      fsSync.mkdirSync(benchmarkDir, { recursive: true });
+    }
+    
+    const testVideoPath = path.join(benchmarkDir, 'benchmark-test-30s-1080p.mp4');
+    
+    // Only generate if it doesn't exist
+    if (!fsSync.existsSync(testVideoPath)) {
+      await generateBenchmarkTestVideo(testVideoPath, 30);
+    }
+    
+    return {
+      success: true,
+      filePath: testVideoPath,
+      fileName: 'benchmark-test-30s-1080p.mp4'
+    };
+  } catch (error) {
+    throw new Error(`Failed to generate benchmark video: ${error.message}`);
+  }
+});
+
+// Helper function to generate a minimal test video for encoder detection
 async function generateTestVideo(outputPath) {
   return new Promise((resolve, reject) => {
     // Generate a 2-frame test video using FFmpeg's video generation filter
-    // Output: 1280x720 video, 2 frames at 30fps (so it's about 1 second)
+    // Output: 1280x720 video, 2 frames at 30fps (so it's about 0.1 seconds)
     const args = [
       '-f', 'lavfi',
       '-i', 'color=c=blue:s=1280x720:d=0.1',  // 0.1 seconds of blue video
@@ -1529,10 +1563,54 @@ async function generateTestVideo(outputPath) {
   });
 }
 
+// Helper function to generate a longer test video for actual benchmarking
+async function generateBenchmarkTestVideo(outputPath, duration = 30) {
+  return new Promise((resolve, reject) => {
+    // Generate a test video with some visual complexity for realistic benchmarking
+    // Use testsrc2 which has moving patterns to actually stress the encoder
+    const args = [
+      '-f', 'lavfi',
+      '-i', `testsrc2=size=1920x1080:duration=${duration}:rate=30`,  // 1080p test pattern
+      '-c:v', 'libx264',
+      '-preset', 'ultrafast',
+      '-pix_fmt', 'yuv420p',
+      '-y',
+      outputPath
+    ];
+    
+    const ffmpeg = spawn('ffmpeg', args);
+    let stderr = '';
+    
+    ffmpeg.stderr.on('data', (data) => {
+      stderr += data.toString();
+    });
+    
+    ffmpeg.on('close', (code) => {
+      if (code === 0) {
+        console.log(`Generated benchmark test video at: ${outputPath} (${duration}s)`);
+        resolve();
+      } else {
+        const error = stderr.split('\n').slice(-10).join('\n');
+        reject(new Error(`Failed to generate benchmark test video: ${error}`));
+      }
+    });
+    
+    ffmpeg.on('error', (err) => {
+      reject(new Error(`FFmpeg error generating benchmark test video: ${err.message}`));
+    });
+  });
+}
+
 ipcMain.handle('run-benchmark-test', async (event, options) => {
   const { inputPath, codec, hwAccel, resolution } = options;
-  const outputDir = path.join(app.getPath('temp'), 'streamline-benchmark-output');
+  // Use a simpler temp directory to avoid DOS short name issues
+  const tempBase = path.join(app.getPath('userData'), 'benchmark-temp');
+  const outputDir = path.join(tempBase, 'output');
   
+  // Ensure directories exist
+  if (!fsSync.existsSync(tempBase)) {
+    fsSync.mkdirSync(tempBase, { recursive: true });
+  }
   if (!fsSync.existsSync(outputDir)) {
     fsSync.mkdirSync(outputDir, { recursive: true });
   }
@@ -1540,7 +1618,7 @@ ipcMain.handle('run-benchmark-test', async (event, options) => {
   // Generate a test video if inputPath is 'builtin:2frame'
   let actualInputPath = inputPath;
   if (inputPath === 'builtin:2frame') {
-    actualInputPath = path.join(outputDir, 'test-input-2frame.mp4');
+    actualInputPath = path.join(tempBase, 'test-input-2frame.mp4');
     
     // Only generate if it doesn't exist
     if (!fsSync.existsSync(actualInputPath)) {
@@ -1593,32 +1671,46 @@ ipcMain.handle('run-benchmark-test', async (event, options) => {
       if (codec === 'h264') codecArgs = ['-c:v', 'h264_qsv'];
       else if (codec === 'h265') codecArgs = ['-c:v', 'hevc_qsv'];
       else if (codec === 'av1') codecArgs = ['-c:v', 'av1_qsv'];
+      else if (codec === 'vp9') codecArgs = ['-c:v', 'vp9_qsv'];
     } else if (hwAccel === 'apple') {
       // Apple VideoToolbox
       if (codec === 'h264') codecArgs = ['-c:v', 'h264_videotoolbox'];
       else if (codec === 'h265') codecArgs = ['-c:v', 'hevc_videotoolbox'];
+      else if (codec === 'prores') codecArgs = ['-c:v', 'prores_videotoolbox'];
     } else {
       // Software encoding
-      if (codec === 'h264') codecArgs = ['-c:v', 'libx264'];
-      else if (codec === 'h265') codecArgs = ['-c:v', 'libx265'];
-      else if (codec === 'av1') codecArgs = ['-c:v', 'libaom-av1'];
+      if (codec === 'h264') codecArgs = ['-c:v', 'libx264', '-preset', 'medium'];
+      else if (codec === 'h265') codecArgs = ['-c:v', 'libx265', '-preset', 'medium'];
+      else if (codec === 'av1') codecArgs = ['-c:v', 'libaom-av1', '-cpu-used', '4'];
+      else if (codec === 'vp9') codecArgs = ['-c:v', 'libvpx-vp9', '-cpu-used', '2'];
+      else if (codec === 'vp8') codecArgs = ['-c:v', 'libvpx', '-cpu-used', '2'];
     }
     
+    // Use forward slashes for FFmpeg compatibility, especially on Windows
+    const inputForFFmpeg = actualInputPath.replace(/\\/g, '/');
+    const outputForFFmpeg = outputPath.replace(/\\/g, '/');
+    
+    // For detection tests (builtin:2frame), don't use -t flag so all frames are encoded
+    // For benchmark tests with real videos, use -t to limit test duration
     const args = [
-      '-i', actualInputPath,
+      '-i', inputForFFmpeg,
       ...codecArgs,
       '-b:v', '5M',
       '-c:a', 'aac',
       '-b:a', '128k',
-      '-t', '10',  // Limit to 10 seconds for faster benchmark
+      ...(inputPath === 'builtin:2frame' ? [] : ['-t', '10']),  // Only limit real videos
       '-y',
-      outputPath
+      outputForFFmpeg
     ];
     
-    console.log(`Running benchmark test: ${codec} with ${hwAccel || 'software'} acceleration`);
-    console.log(`FFmpeg command: ffmpeg ${args.join(' ')}`);
+    console.log(`\n=== Starting Benchmark Test ===`);
+    console.log(`Codec: ${codec}, Hardware: ${hwAccel || 'Software'}`);
+    console.log(`Input: ${inputForFFmpeg}`);
+    console.log(`Output: ${outputForFFmpeg}`);
+    console.log(`Command: ffmpeg ${args.join(' ')}`);
+    console.log(`=== ===\n`);
     
-    const result = await executeFFmpegBenchmark(args, outputPath, startTime, codec, hwAccel);
+    const result = await executeFFmpegBenchmark(args, outputPath, startTime, codec, hwAccel, event);
     return result;
   } catch (error) {
     // Don't fall back for hardware acceleration - just mark it as failed
@@ -1628,60 +1720,188 @@ ipcMain.handle('run-benchmark-test', async (event, options) => {
 });
 
 // Helper function to execute FFmpeg benchmark
-async function executeFFmpegBenchmark(args, outputPath, startTime, codec, hwAccel) {
+async function executeFFmpegBenchmark(args, outputPath, startTime, codec, hwAccel, event) {
   return new Promise((resolve, reject) => {
     const ffmpeg = spawn('ffmpeg', args);
     let stderr = '';
+    let stdout = '';
+    let lastProgressUpdate = 0;
     
     ffmpeg.stderr.on('data', (data) => {
-      stderr += data.toString();
+      const chunk = data.toString();
+      stderr += chunk;
+      
+      // Send real-time progress updates
+      // Parse FFmpeg progress: frame=X fps=Y time=HH:MM:SS.ms
+      const frameMatch = chunk.match(/frame=\s*(\d+)/);
+      const fpsMatch = chunk.match(/fps=\s*(\d+(?:\.\d+)?)/);  // Fixed regex to properly capture decimals
+      const timeMatch = chunk.match(/time=(\d{2}):(\d{2}):(\d{2}\.\d{2})/);
+      const speedMatch = chunk.match(/speed=\s*(\d+(?:\.\d+)?)x/);  // Fixed regex to properly capture decimals
+      
+      if (frameMatch || fpsMatch || timeMatch) {
+        const now = Date.now();
+        // Throttle progress updates to every 100ms
+        if (now - lastProgressUpdate > 100) {
+          lastProgressUpdate = now;
+          
+          let progress = {
+            frame: frameMatch ? parseInt(frameMatch[1]) : 0,
+            fps: fpsMatch ? parseFloat(fpsMatch[1]) : 0,
+            speed: speedMatch ? parseFloat(speedMatch[1]) : 0,
+          };
+          
+          if (timeMatch) {
+            const hours = parseInt(timeMatch[1]);
+            const minutes = parseInt(timeMatch[2]);
+            const seconds = parseFloat(timeMatch[3]);
+            progress.time = hours * 3600 + minutes * 60 + seconds;
+          }
+          
+          // Send progress to renderer
+          if (event && event.sender) {
+            event.sender.send('benchmark-progress', {
+              codec,
+              hwAccel,
+              progress
+            });
+          }
+        }
+      }
     });
     
-    ffmpeg.on('close', (code) => {
+    ffmpeg.stdout.on('data', (data) => {
+      stdout += data.toString();
+    });
+    
+    ffmpeg.on('close', async (code) => {
       if (code === 0) {
         const endTime = Date.now();
         const duration = (endTime - startTime) / 1000; // in seconds
         
-        // Parse FFmpeg output for stats
-        const fpsMatch = stderr.match(/fps=\s*(\d+\.?\d*)/);
-        const speedMatch = stderr.match(/speed=\s*(\d+\.?\d*)x/);
+        // Parse FFmpeg output for final stats (use last occurrence)
+        const allFpsMatches = stderr.match(/fps=\s*(\d+(?:\.\d+)?)/g);
+        const finalFps = allFpsMatches && allFpsMatches.length > 0 
+          ? parseFloat(allFpsMatches[allFpsMatches.length - 1].match(/(\d+(?:\.\d+)?)/)[0]) 
+          : 0;
+        
+        const allSpeedMatches = stderr.match(/speed=\s*(\d+(?:\.\d+)?)x/g);
+        const finalSpeed = allSpeedMatches && allSpeedMatches.length > 0
+          ? parseFloat(allSpeedMatches[allSpeedMatches.length - 1].match(/(\d+(?:\.\d+)?)/)[0])
+          : (duration > 0 ? 1 : 0);
         
         try {
           const stats = fsSync.statSync(outputPath);
           
+          // Validate and analyze the output video with ffprobe
+          let videoInfo = null;
+          let isPlayable = false;
+          let qualityMetrics = {};
+          
+          try {
+            videoInfo = await new Promise((resolveProbe, rejectProbe) => {
+              const ffprobe = spawn('ffprobe', [
+                '-v', 'quiet',
+                '-print_format', 'json',
+                '-show_format',
+                '-show_streams',
+                outputPath
+              ]);
+              
+              let probeOutput = '';
+              ffprobe.stdout.on('data', (data) => {
+                probeOutput += data.toString();
+              });
+              
+              ffprobe.on('close', (probeCode) => {
+                if (probeCode === 0 && probeOutput) {
+                  try {
+                    const info = JSON.parse(probeOutput);
+                    resolveProbe(info);
+                  } catch (e) {
+                    rejectProbe(e);
+                  }
+                } else {
+                  rejectProbe(new Error('ffprobe failed'));
+                }
+              });
+              
+              ffprobe.on('error', rejectProbe);
+            });
+            
+            isPlayable = true;
+            
+            // Extract quality metrics
+            const videoStream = videoInfo.streams?.find(s => s.codec_type === 'video');
+            if (videoStream) {
+              qualityMetrics = {
+                width: videoStream.width,
+                height: videoStream.height,
+                codecName: videoStream.codec_name,
+                profile: videoStream.profile,
+                pixelFormat: videoStream.pix_fmt,
+                bitRate: parseInt(videoStream.bit_rate) || 0,
+                frameRate: eval(videoStream.r_frame_rate) || 0, // e.g., "30/1" -> 30
+                duration: parseFloat(videoInfo.format?.duration) || 0,
+                totalFrames: parseInt(videoStream.nb_frames) || 0
+              };
+            }
+          } catch (probeError) {
+            console.error(`ffprobe validation failed for ${outputPath}:`, probeError.message);
+            isPlayable = false;
+          }
+          
           resolve({
             success: true,
             duration,
-            fps: fpsMatch ? parseFloat(fpsMatch[1]) : 0,
-            speed: speedMatch ? parseFloat(speedMatch[1]) : duration > 0 ? 1 : 0,
+            fps: finalFps,
+            speed: finalSpeed,
             fileSize: stats.size,
-            bitrate: (stats.size * 8) / duration, // bits per second
+            bitrate: (stats.size * 8) / (duration > 0 ? duration : 1), // bits per second
+            outputPath,  // Keep the path for later validation/archiving
+            isPlayable,
+            qualityMetrics
           });
         } catch (statError) {
           reject(new Error(`Failed to get output file stats: ${statError.message}`));
         }
       } else {
-        const lastLines = stderr.split('\n').slice(-50).join('\n');
-        console.error(`FFmpeg failed with code ${code} for ${codec} (${hwAccel || 'software'})`);
-        console.error(`Input path: ${args[args.indexOf('-i') + 1]}`);
-        console.error(`Last stderr lines:\n${lastLines}`);
+        // Get all output for debugging
+        const allOutput = stderr + '\n' + stdout;
+        const lines = allOutput.split('\n').filter(line => line.trim().length > 0);
         
-        // Return more detailed error message
-        const errorDetails = lastLines.match(/Error[^\\n]*/g)?.join('; ') || `FFmpeg error code ${code}`;
-        reject(new Error(`${errorDetails}`));
-      }
-      
-      // Clean up output file regardless of success
-      try {
-        fsSync.unlinkSync(outputPath);
-      } catch (e) {
-        // File might not exist or already deleted, that's ok
+        console.error(`FFmpeg failed with code ${code} for ${codec} (${hwAccel || 'software'})`);
+        console.error(`Last 40 lines of FFmpeg output:`);
+        lines.slice(-40).forEach((line, idx) => {
+          console.error(`  ${idx}: ${line}`);
+        });
+        
+        // Look for error/warning messages
+        let errorMessage = `Encoding failed (code ${code})`;
+        
+        // Find lines with error keywords
+        const errorLines = lines.filter(line => {
+          const lower = line.toLowerCase();
+          return /error|failed|unknown|invalid|not found|no such|cannot find|unrecognized|option/i.test(lower);
+        });
+        
+        if (errorLines.length > 0) {
+          // Get unique error messages and join them
+          const uniqueErrors = [...new Set(errorLines.map(l => l.trim()))];
+          errorMessage = uniqueErrors.slice(-2).join(' | ');
+          
+          // Limit length for display
+          if (errorMessage.length > 300) {
+            errorMessage = errorMessage.substring(0, 300) + '...';
+          }
+        }
+        
+        reject(new Error(errorMessage));
       }
     });
     
     ffmpeg.on('error', (err) => {
       console.error(`FFmpeg process error: ${err.message}`);
-      reject(err);
+      reject(new Error(`FFmpeg process failed: ${err.message}`));
     });
   });
 }
@@ -1705,6 +1925,113 @@ ipcMain.handle('save-benchmark', async (event, benchmarkData) => {
     return null;
   } catch (error) {
     throw new Error(`Failed to save benchmark: ${error.message}`);
+  }
+});
+
+// Save benchmark as .slreport format (for web comparison)
+ipcMain.handle('save-benchmark-report', async (event, benchmarkData) => {
+  try {
+    const filePath = await dialog.showSaveDialog(mainWindow, {
+      title: 'Save Benchmark Report',
+      defaultPath: `benchmark_report_${new Date().toISOString().replace(/:/g, '-')}.slreport`,
+      filters: [
+        { name: 'Streamline Report', extensions: ['slreport'] },
+        { name: 'JSON Files', extensions: ['json'] },
+        { name: 'All Files', extensions: ['*'] }
+      ]
+    });
+
+    if (filePath.filePath) {
+      await fs.writeFile(filePath.filePath, JSON.stringify(benchmarkData, null, 2));
+      return filePath.filePath;
+    }
+    
+    return null;
+  } catch (error) {
+    throw new Error(`Failed to save benchmark report: ${error.message}`);
+  }
+});
+
+// Archive benchmark results with video files in a ZIP
+ipcMain.handle('archive-benchmark-with-videos', async (event, { benchmarkData, videoPaths }) => {
+  try {
+    const archiver = require('archiver');
+    
+    const filePath = await dialog.showSaveDialog(mainWindow, {
+      title: 'Save Benchmark Archive',
+      defaultPath: `benchmark_archive_${new Date().toISOString().replace(/:/g, '-')}.zip`,
+      filters: [
+        { name: 'ZIP Archive', extensions: ['zip'] },
+        { name: 'All Files', extensions: ['*'] }
+      ]
+    });
+
+    if (!filePath.filePath) {
+      return null;
+    }
+
+    return new Promise((resolve, reject) => {
+      const output = fsSync.createWriteStream(filePath.filePath);
+      const archive = archiver('zip', { zlib: { level: 9 } });
+
+      output.on('close', () => {
+        resolve({
+          success: true,
+          filePath: filePath.filePath,
+          size: archive.pointer()
+        });
+      });
+
+      archive.on('error', (err) => {
+        reject(err);
+      });
+
+      archive.pipe(output);
+
+      // Add benchmark data as JSON
+      archive.append(JSON.stringify(benchmarkData, null, 2), { name: 'benchmark.slbench' });
+      archive.append(JSON.stringify(benchmarkData, null, 2), { name: 'benchmark.slreport' });
+
+      // Add video files
+      videoPaths.forEach((videoPath, index) => {
+        if (fsSync.existsSync(videoPath)) {
+          const fileName = path.basename(videoPath);
+          archive.file(videoPath, { name: `videos/${fileName}` });
+        }
+      });
+
+      archive.finalize();
+    });
+  } catch (error) {
+    throw new Error(`Failed to create archive: ${error.message}`);
+  }
+});
+
+// Clean up benchmark video files
+ipcMain.handle('cleanup-benchmark-videos', async (event, videoPaths) => {
+  try {
+    let deletedCount = 0;
+    let failedCount = 0;
+
+    for (const videoPath of videoPaths) {
+      try {
+        if (fsSync.existsSync(videoPath)) {
+          fsSync.unlinkSync(videoPath);
+          deletedCount++;
+        }
+      } catch (err) {
+        console.error(`Failed to delete ${videoPath}:`, err.message);
+        failedCount++;
+      }
+    }
+
+    return {
+      success: true,
+      deleted: deletedCount,
+      failed: failedCount
+    };
+  } catch (error) {
+    throw new Error(`Failed to cleanup videos: ${error.message}`);
   }
 });
 
