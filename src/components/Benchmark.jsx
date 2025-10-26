@@ -502,10 +502,13 @@ function Benchmark() {
     return `~${hours}h ${remainingMins}m`;
   };
 
-  const getVideoSizeDisplay = () => {
-    if (downloading) return `Downloading... ${downloadProgress}%`;
-    if (downloadedPath) return '✓ Downloaded';
-    return selectedVideo.size;
+  const getVideoSizeDisplay = (video) => {
+    // Only show download status for the currently selected video
+    if (selectedVideo.url === video.url) {
+      if (downloading) return `Downloading... ${downloadProgress}%`;
+      if (downloadedPath) return '✓ Downloaded';
+    }
+    return video.size;
   };
 
   const sortResults = (results, sortBy) => {
@@ -784,7 +787,7 @@ function Benchmark() {
                 >
                   <div className="font-semibold">{video.name}</div>
                   <div className="text-sm text-gray-500">
-                    {video.resolution} • {getVideoSizeDisplay()}
+                    {video.resolution} • {getVideoSizeDisplay(video)}
                   </div>
                 </button>
               ))}
