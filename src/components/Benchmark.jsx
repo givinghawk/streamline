@@ -52,6 +52,7 @@ function Benchmark() {
   const [detectionResults, setDetectionResults] = useState(null);
   const [detectionRunning, setDetectionRunning] = useState(false);
   const [detectionProgress, setDetectionProgress] = useState(0);
+  const [currentBenchmarkProgress, setCurrentBenchmarkProgress] = useState(null);
 
   const bgColor = settings.theme === 'dark' ? 'bg-surface' : 'bg-white';
   const borderColor = settings.theme === 'dark' ? 'border-gray-700' : 'border-gray-200';
@@ -119,6 +120,8 @@ function Benchmark() {
         { codec: 'h264', hwAccel: null, name: 'H.264 (Software)' },
         { codec: 'h265', hwAccel: null, name: 'H.265 (Software)' },
         { codec: 'av1', hwAccel: null, name: 'AV1 (Software)' },
+        { codec: 'vp9', hwAccel: null, name: 'VP9 (Software)' },
+        { codec: 'vp8', hwAccel: null, name: 'VP8 (Software)' },
         // Hardware encoders - NVIDIA
         { codec: 'h264', hwAccel: 'nvidia', name: 'H.264 (NVIDIA NVENC)' },
         { codec: 'h265', hwAccel: 'nvidia', name: 'H.265 (NVIDIA NVENC)' },
@@ -131,9 +134,11 @@ function Benchmark() {
         { codec: 'h264', hwAccel: 'intel', name: 'H.264 (Intel QSV)' },
         { codec: 'h265', hwAccel: 'intel', name: 'H.265 (Intel QSV)' },
         { codec: 'av1', hwAccel: 'intel', name: 'AV1 (Intel QSV)' },
+        { codec: 'vp9', hwAccel: 'intel', name: 'VP9 (Intel QSV)' },
         // Hardware encoders - Apple
         { codec: 'h264', hwAccel: 'apple', name: 'H.264 (Apple VideoToolbox)' },
-        { codec: 'h265', hwAccel: 'apple', name: 'H.265 (Apple VideoToolbox)' }
+        { codec: 'h265', hwAccel: 'apple', name: 'H.265 (Apple VideoToolbox)' },
+        { codec: 'prores', hwAccel: 'apple', name: 'ProRes (Apple VideoToolbox)' }
       ];
 
       const detectedEncoders = [];
@@ -242,6 +247,11 @@ function Benchmark() {
     setResults([]);
     setBenchmarkStep('benchmarking');
 
+    // Set up benchmark progress listener
+    window.electron.onBenchmarkProgress((data) => {
+      setCurrentBenchmarkProgress(data.progress);
+    });
+
     // Verify the downloaded file exists and is readable
     try {
       const fileExists = await window.electron.checkFileExists(downloadedPath);
@@ -252,6 +262,7 @@ function Benchmark() {
       alert(`File validation failed: ${checkError.message}`);
       setRunning(false);
       setBenchmarkStep('download');
+      window.electron.removeBenchmarkProgressListener();
       return;
     }
 
@@ -270,6 +281,7 @@ function Benchmark() {
       const codecTest = testsToRun[index];
       setCurrentTest(codecTest.name);
       setTestProgress(index);
+      setCurrentBenchmarkProgress(null);
 
       try {
         const result = await window.electron.runBenchmarkTest({
@@ -282,6 +294,7 @@ function Benchmark() {
         benchmarkResults.push({
           ...codecTest,
           ...result,
+          encoderType: codecTest.hwAccel ? 'hardware' : 'software',
           timestamp: new Date().toISOString()
         });
 
@@ -291,17 +304,20 @@ function Benchmark() {
         benchmarkResults.push({
           ...codecTest,
           error: error.message,
+          encoderType: codecTest.hwAccel ? 'hardware' : 'software',
           timestamp: new Date().toISOString()
         });
         setResults([...benchmarkResults]);
       }
     }
 
+    window.electron.removeBenchmarkProgressListener();
     setRunning(false);
     setCurrentTest(null);
     setTestProgress(0);
     setTotalTests(0);
     setCancelBenchmark(false);
+    setCurrentBenchmarkProgress(null);
     setBenchmarkStep('complete');
   };
 
@@ -765,6 +781,14 @@ function Benchmark() {
                       <div>
                         <p className="text-blue-400 font-semibold">Currently testing: {currentTest}</p>
                         <p className="text-blue-300 text-sm">Progress: {testProgress + 1} of {totalTests}</p>
+                        {currentBenchmarkProgress && (
+                          <div className="text-blue-200 text-xs mt-1 space-y-0.5">
+                            <div>Frame: {currentBenchmarkProgress.frame || 0} | FPS: {currentBenchmarkProgress.fps?.toFixed(1) || 0} | Speed: {currentBenchmarkProgress.speed?.toFixed(2) || 0}x</div>
+                            {currentBenchmarkProgress.time && (
+                              <div>Time: {Math.floor(currentBenchmarkProgress.time / 60)}:{(currentBenchmarkProgress.time % 60).toFixed(1).padStart(4, '0')}</div>
+                            )}
+                          </div>
+                        )}
                       </div>
                       <button
                         onClick={() => setCancelBenchmark(true)}

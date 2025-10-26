@@ -1604,28 +1604,34 @@ ipcMain.handle('run-benchmark-test', async (event, options) => {
       if (codec === 'h264') codecArgs = ['-c:v', 'h264_qsv'];
       else if (codec === 'h265') codecArgs = ['-c:v', 'hevc_qsv'];
       else if (codec === 'av1') codecArgs = ['-c:v', 'av1_qsv'];
+      else if (codec === 'vp9') codecArgs = ['-c:v', 'vp9_qsv'];
     } else if (hwAccel === 'apple') {
       // Apple VideoToolbox
       if (codec === 'h264') codecArgs = ['-c:v', 'h264_videotoolbox'];
       else if (codec === 'h265') codecArgs = ['-c:v', 'hevc_videotoolbox'];
+      else if (codec === 'prores') codecArgs = ['-c:v', 'prores_videotoolbox'];
     } else {
       // Software encoding
-      if (codec === 'h264') codecArgs = ['-c:v', 'libx264'];
-      else if (codec === 'h265') codecArgs = ['-c:v', 'libx265'];
-      else if (codec === 'av1') codecArgs = ['-c:v', 'libaom-av1'];
+      if (codec === 'h264') codecArgs = ['-c:v', 'libx264', '-preset', 'medium'];
+      else if (codec === 'h265') codecArgs = ['-c:v', 'libx265', '-preset', 'medium'];
+      else if (codec === 'av1') codecArgs = ['-c:v', 'libaom-av1', '-cpu-used', '4'];
+      else if (codec === 'vp9') codecArgs = ['-c:v', 'libvpx-vp9', '-cpu-used', '2'];
+      else if (codec === 'vp8') codecArgs = ['-c:v', 'libvpx', '-cpu-used', '2'];
     }
     
     // Use forward slashes for FFmpeg compatibility, especially on Windows
     const inputForFFmpeg = actualInputPath.replace(/\\/g, '/');
     const outputForFFmpeg = outputPath.replace(/\\/g, '/');
     
+    // For detection tests (builtin:2frame), don't use -t flag so all frames are encoded
+    // For benchmark tests with real videos, use -t to limit test duration
     const args = [
       '-i', inputForFFmpeg,
       ...codecArgs,
       '-b:v', '5M',
       '-c:a', 'aac',
       '-b:a', '128k',
-      '-t', '10',  // Limit to 10 seconds for faster benchmark
+      ...(inputPath === 'builtin:2frame' ? [] : ['-t', '10']),  // Only limit real videos
       '-y',
       outputForFFmpeg
     ];
@@ -1637,7 +1643,7 @@ ipcMain.handle('run-benchmark-test', async (event, options) => {
     console.log(`Command: ffmpeg ${args.join(' ')}`);
     console.log(`=== ===\n`);
     
-    const result = await executeFFmpegBenchmark(args, outputPath, startTime, codec, hwAccel);
+    const result = await executeFFmpegBenchmark(args, outputPath, startTime, codec, hwAccel, event);
     return result;
   } catch (error) {
     // Don't fall back for hardware acceleration - just mark it as failed
@@ -1647,14 +1653,53 @@ ipcMain.handle('run-benchmark-test', async (event, options) => {
 });
 
 // Helper function to execute FFmpeg benchmark
-async function executeFFmpegBenchmark(args, outputPath, startTime, codec, hwAccel) {
+async function executeFFmpegBenchmark(args, outputPath, startTime, codec, hwAccel, event) {
   return new Promise((resolve, reject) => {
     const ffmpeg = spawn('ffmpeg', args);
     let stderr = '';
     let stdout = '';
+    let lastProgressUpdate = 0;
     
     ffmpeg.stderr.on('data', (data) => {
-      stderr += data.toString();
+      const chunk = data.toString();
+      stderr += chunk;
+      
+      // Send real-time progress updates
+      // Parse FFmpeg progress: frame=X fps=Y time=HH:MM:SS.ms
+      const frameMatch = chunk.match(/frame=\s*(\d+)/);
+      const fpsMatch = chunk.match(/fps=\s*(\d+\.?\d*)/);
+      const timeMatch = chunk.match(/time=(\d{2}):(\d{2}):(\d{2}\.\d{2})/);
+      const speedMatch = chunk.match(/speed=\s*(\d+\.?\d*)x/);
+      
+      if (frameMatch || fpsMatch || timeMatch) {
+        const now = Date.now();
+        // Throttle progress updates to every 100ms
+        if (now - lastProgressUpdate > 100) {
+          lastProgressUpdate = now;
+          
+          let progress = {
+            frame: frameMatch ? parseInt(frameMatch[1]) : 0,
+            fps: fpsMatch ? parseFloat(fpsMatch[1]) : 0,
+            speed: speedMatch ? parseFloat(speedMatch[1]) : 0,
+          };
+          
+          if (timeMatch) {
+            const hours = parseInt(timeMatch[1]);
+            const minutes = parseInt(timeMatch[2]);
+            const seconds = parseFloat(timeMatch[3]);
+            progress.time = hours * 3600 + minutes * 60 + seconds;
+          }
+          
+          // Send progress to renderer
+          if (event && event.sender) {
+            event.sender.send('benchmark-progress', {
+              codec,
+              hwAccel,
+              progress
+            });
+          }
+        }
+      }
     });
     
     ffmpeg.stdout.on('data', (data) => {

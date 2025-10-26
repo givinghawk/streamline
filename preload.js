@@ -92,6 +92,12 @@ contextBridge.exposeInMainWorld('electron', {
   getSavedBenchmarks: () => ipcRenderer.invoke('get-saved-benchmarks'),
   detectEncoders: () => ipcRenderer.invoke('detect-encoders'),
   getDetectedEncoders: () => ipcRenderer.invoke('get-detected-encoders'),
+  onBenchmarkProgress: (callback) => {
+    ipcRenderer.on('benchmark-progress', (event, data) => callback(data));
+  },
+  removeBenchmarkProgressListener: () => {
+    ipcRenderer.removeAllListeners('benchmark-progress');
+  },
 });
 
 console.log('Preload script completed - window.electron should be available');
