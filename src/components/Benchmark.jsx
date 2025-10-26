@@ -3,6 +3,13 @@ import { useSettings } from '../contexts/SettingsContext';
 
 const TEST_VIDEOS = [
   {
+    name: 'Built-in Test Pattern (30s, 1080p)',
+    url: 'builtin:benchmark',
+    resolution: '1080p',
+    size: '~10MB',
+    builtin: true
+  },
+  {
     name: 'Big Buck Bunny 480p',
     url: 'http://download.blender.org/peach/bigbuckbunny_movies/big_buck_bunny_480p_surround-fix.avi',
     resolution: '480p',
@@ -214,6 +221,25 @@ function Benchmark() {
   };
 
   const handleDownloadTestVideo = async () => {
+    // Handle built-in test video generation
+    if (selectedVideo.builtin && selectedVideo.url === 'builtin:benchmark') {
+      setDownloading(true);
+      setDownloadProgress(0);
+      
+      try {
+        const result = await window.electron.generateBenchmarkVideo();
+        setDownloadedPath(result.filePath);
+        setBenchmarkStep('benchmark');
+      } catch (error) {
+        alert(`Failed to generate test video: ${error.message}`);
+      } finally {
+        setDownloading(false);
+        setDownloadProgress(0);
+      }
+      return;
+    }
+    
+    // Handle regular video downloads
     setDownloading(true);
     setDownloadProgress(0);
 

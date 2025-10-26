@@ -86,6 +86,7 @@ contextBridge.exposeInMainWorld('electron', {
   // Benchmark
   getSystemInfo: () => ipcRenderer.invoke('get-system-info'),
   downloadBenchmarkVideo: (url) => ipcRenderer.invoke('download-benchmark-video', url),
+  generateBenchmarkVideo: () => ipcRenderer.invoke('generate-benchmark-video'),
   runBenchmarkTest: (options) => ipcRenderer.invoke('run-benchmark-test', options),
   saveBenchmark: (data) => ipcRenderer.invoke('save-benchmark', data),
   loadBenchmark: (filePath) => ipcRenderer.invoke('load-benchmark', filePath),

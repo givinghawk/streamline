@@ -1496,11 +1496,38 @@ ipcMain.handle('download-benchmark-video', async (event, url) => {
   }
 });
 
-// Helper function to generate a minimal test video for benchmarking
+// Handler to generate built-in benchmark test video
+ipcMain.handle('generate-benchmark-video', async (event) => {
+  try {
+    const benchmarkDir = path.join(app.getPath('userData'), 'benchmark-temp', 'builtin');
+    
+    // Create directory if it doesn't exist
+    if (!fsSync.existsSync(benchmarkDir)) {
+      fsSync.mkdirSync(benchmarkDir, { recursive: true });
+    }
+    
+    const testVideoPath = path.join(benchmarkDir, 'benchmark-test-30s-1080p.mp4');
+    
+    // Only generate if it doesn't exist
+    if (!fsSync.existsSync(testVideoPath)) {
+      await generateBenchmarkTestVideo(testVideoPath, 30);
+    }
+    
+    return {
+      success: true,
+      filePath: testVideoPath,
+      fileName: 'benchmark-test-30s-1080p.mp4'
+    };
+  } catch (error) {
+    throw new Error(`Failed to generate benchmark video: ${error.message}`);
+  }
+});
+
+// Helper function to generate a minimal test video for encoder detection
 async function generateTestVideo(outputPath) {
   return new Promise((resolve, reject) => {
     // Generate a 2-frame test video using FFmpeg's video generation filter
-    // Output: 1280x720 video, 2 frames at 30fps (so it's about 1 second)
+    // Output: 1280x720 video, 2 frames at 30fps (so it's about 0.1 seconds)
     const args = [
       '-f', 'lavfi',
       '-i', 'color=c=blue:s=1280x720:d=0.1',  // 0.1 seconds of blue video
@@ -1530,6 +1557,44 @@ async function generateTestVideo(outputPath) {
     
     ffmpeg.on('error', (err) => {
       reject(new Error(`FFmpeg error generating test video: ${err.message}`));
+    });
+  });
+}
+
+// Helper function to generate a longer test video for actual benchmarking
+async function generateBenchmarkTestVideo(outputPath, duration = 30) {
+  return new Promise((resolve, reject) => {
+    // Generate a test video with some visual complexity for realistic benchmarking
+    // Use testsrc2 which has moving patterns to actually stress the encoder
+    const args = [
+      '-f', 'lavfi',
+      '-i', `testsrc2=size=1920x1080:duration=${duration}:rate=30`,  // 1080p test pattern
+      '-c:v', 'libx264',
+      '-preset', 'ultrafast',
+      '-pix_fmt', 'yuv420p',
+      '-y',
+      outputPath
+    ];
+    
+    const ffmpeg = spawn('ffmpeg', args);
+    let stderr = '';
+    
+    ffmpeg.stderr.on('data', (data) => {
+      stderr += data.toString();
+    });
+    
+    ffmpeg.on('close', (code) => {
+      if (code === 0) {
+        console.log(`Generated benchmark test video at: ${outputPath} (${duration}s)`);
+        resolve();
+      } else {
+        const error = stderr.split('\n').slice(-10).join('\n');
+        reject(new Error(`Failed to generate benchmark test video: ${error}`));
+      }
+    });
+    
+    ffmpeg.on('error', (err) => {
+      reject(new Error(`FFmpeg error generating benchmark test video: ${err.message}`));
     });
   });
 }
