@@ -1734,9 +1734,9 @@ async function executeFFmpegBenchmark(args, outputPath, startTime, codec, hwAcce
       // Send real-time progress updates
       // Parse FFmpeg progress: frame=X fps=Y time=HH:MM:SS.ms
       const frameMatch = chunk.match(/frame=\s*(\d+)/);
-      const fpsMatch = chunk.match(/fps=\s*(\d+\.?\d*)/);
+      const fpsMatch = chunk.match(/fps=\s*(\d+(?:\.\d+)?)/);  // Fixed regex to properly capture decimals
       const timeMatch = chunk.match(/time=(\d{2}):(\d{2}):(\d{2}\.\d{2})/);
-      const speedMatch = chunk.match(/speed=\s*(\d+\.?\d*)x/);
+      const speedMatch = chunk.match(/speed=\s*(\d+(?:\.\d+)?)x/);  // Fixed regex to properly capture decimals
       
       if (frameMatch || fpsMatch || timeMatch) {
         const now = Date.now();
@@ -1779,14 +1779,14 @@ async function executeFFmpegBenchmark(args, outputPath, startTime, codec, hwAcce
         const duration = (endTime - startTime) / 1000; // in seconds
         
         // Parse FFmpeg output for final stats (use last occurrence)
-        const allFpsMatches = stderr.match(/fps=\s*(\d+\.?\d*)/g);
+        const allFpsMatches = stderr.match(/fps=\s*(\d+(?:\.\d+)?)/g);
         const finalFps = allFpsMatches && allFpsMatches.length > 0 
-          ? parseFloat(allFpsMatches[allFpsMatches.length - 1].match(/\d+\.?\d*/)[0]) 
+          ? parseFloat(allFpsMatches[allFpsMatches.length - 1].match(/(\d+(?:\.\d+)?)/)[0]) 
           : 0;
         
-        const allSpeedMatches = stderr.match(/speed=\s*(\d+\.?\d*)x/g);
+        const allSpeedMatches = stderr.match(/speed=\s*(\d+(?:\.\d+)?)x/g);
         const finalSpeed = allSpeedMatches && allSpeedMatches.length > 0
-          ? parseFloat(allSpeedMatches[allSpeedMatches.length - 1].match(/\d+\.?\d*/)[0])
+          ? parseFloat(allSpeedMatches[allSpeedMatches.length - 1].match(/(\d+(?:\.\d+)?)/)[0])
           : (duration > 0 ? 1 : 0);
         
         try {

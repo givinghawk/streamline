@@ -62,6 +62,7 @@ function Benchmark() {
   const [currentBenchmarkProgress, setCurrentBenchmarkProgress] = useState(null);
   const [showCompletionModal, setShowCompletionModal] = useState(false);
   const [benchmarkVideoPaths, setBenchmarkVideoPaths] = useState([]);
+  const [benchmarkStatuses, setBenchmarkStatuses] = useState({});  // Track status of each test
 
   const bgColor = settings.theme === 'dark' ? 'bg-surface' : 'bg-white';
   const borderColor = settings.theme === 'dark' ? 'border-gray-700' : 'border-gray-200';
@@ -279,6 +280,14 @@ function Benchmark() {
     setBenchmarkStep('benchmarking');
     setBenchmarkVideoPaths([]);
 
+    // Initialize benchmark statuses
+    const testsToRun = availableCodecs.filter(codec => enabledTests[codec.name]);
+    const initialStatuses = {};
+    testsToRun.forEach(codec => {
+      initialStatuses[codec.name] = 'pending';
+    });
+    setBenchmarkStatuses(initialStatuses);
+
     // Set up benchmark progress listener
     window.electron.onBenchmarkProgress((data) => {
       setCurrentBenchmarkProgress(data.progress);
@@ -298,8 +307,6 @@ function Benchmark() {
       return;
     }
 
-    // Filter tests to only enabled ones (which are the detected encoders)
-    const testsToRun = availableCodecs.filter(codec => enabledTests[codec.name]);
     setTotalTests(testsToRun.length);
     const benchmarkResults = [];
     const videoPaths = [];
@@ -315,6 +322,9 @@ function Benchmark() {
       setCurrentTest(codecTest.name);
       setTestProgress(index);
       setCurrentBenchmarkProgress(null);
+      
+      // Mark as running
+      setBenchmarkStatuses(prev => ({ ...prev, [codecTest.name]: 'running' }));
 
       try {
         const result = await window.electron.runBenchmarkTest({
@@ -331,6 +341,9 @@ function Benchmark() {
           timestamp: new Date().toISOString()
         });
 
+        // Mark as complete
+        setBenchmarkStatuses(prev => ({ ...prev, [codecTest.name]: 'complete' }));
+
         // Collect video paths for later archiving/cleanup
         if (result.outputPath) {
           videoPaths.push(result.outputPath);
@@ -345,6 +358,10 @@ function Benchmark() {
           encoderType: codecTest.hwAccel ? 'hardware' : 'software',
           timestamp: new Date().toISOString()
         });
+        
+        // Mark as failed
+        setBenchmarkStatuses(prev => ({ ...prev, [codecTest.name]: 'failed' }));
+        
         setResults([...benchmarkResults]);
       }
     }
@@ -359,8 +376,10 @@ function Benchmark() {
     setCurrentBenchmarkProgress(null);
     setBenchmarkStep('complete');
     
-    // Show completion modal
-    setShowCompletionModal(true);
+    // Show completion modal after a small delay to ensure state updates
+    setTimeout(() => {
+      setShowCompletionModal(true);
+    }, 100);
   };
 
   const toggleTest = (testName) => {
@@ -916,6 +935,35 @@ function Benchmark() {
                   </div>
                   <div className="text-blue-300 text-sm mt-2">
                     Estimated time remaining: {formatEstimatedTime((totalTests - testProgress - 1) * (estimatedTime / totalTests))}
+                  </div>
+                </div>
+
+                {/* Benchmark Status Checklist */}
+                <div className={`p-4 border ${borderColor} rounded bg-opacity-50`}>
+                  <p className="text-sm font-semibold text-primary-300 mb-2">Benchmark Status:</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-64 overflow-y-auto">
+                    {Object.entries(benchmarkStatuses).map(([name, status]) => (
+                      <div key={name} className="flex items-center gap-2 text-sm">
+                        {status === 'pending' && (
+                          <span className="text-gray-500">⏳</span>
+                        )}
+                        {status === 'running' && (
+                          <span className="text-blue-400 animate-pulse">▶️</span>
+                        )}
+                        {status === 'complete' && (
+                          <span className="text-green-400">✅</span>
+                        )}
+                        {status === 'failed' && (
+                          <span className="text-red-400">❌</span>
+                        )}
+                        <span className={
+                          status === 'pending' ? 'text-gray-500' :
+                          status === 'running' ? 'text-blue-400' :
+                          status === 'complete' ? 'text-green-400' :
+                          'text-red-400'
+                        }>{name}</span>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>
