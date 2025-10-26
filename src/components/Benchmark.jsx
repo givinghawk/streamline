@@ -245,7 +245,10 @@ function Benchmark() {
 
     try {
       window.electron.onDownloadProgress((data) => {
-        setDownloadProgress(data.progress);
+        // Only update if this is the download for our selected video
+        if (data.url === selectedVideo.url) {
+          setDownloadProgress(data.progress);
+        }
       });
 
       const result = await window.electron.downloadBenchmarkVideo(selectedVideo.url);

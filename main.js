@@ -1415,6 +1415,7 @@ ipcMain.handle('download-benchmark-video', async (event, url) => {
           if (progress > lastProgress) {
             lastProgress = progress;
             mainWindow.webContents.send('download-progress', {
+              url,
               progress,
               status: `Downloading benchmark video... ${progress}%`,
             });
@@ -1436,6 +1437,7 @@ ipcMain.handle('download-benchmark-video', async (event, url) => {
           if (progress > lastProgress) {
             lastProgress = progress;
             mainWindow.webContents.send('download-progress', {
+              url,
               progress,
               status: `Downloading benchmark video... ${progress}%`,
             });
