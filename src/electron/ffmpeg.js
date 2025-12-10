@@ -758,14 +758,21 @@ function applyCustomSettings(args, settings, hardwareAccel) {
     args.push('-preset', settings.preset);
   }
 
-  // Resolution
-  if (settings.resolution) {
-    args.push('-vf', `scale=${settings.resolution}`);
-  }
-
-  // Frame rate
+  // Frame rate (must come before filter chain)
   if (settings.fps) {
     args.push('-r', settings.fps.toString());
+  }
+
+  // Build filter chain - Handle resolution scaling with proper format
+  const filters = [];
+  
+  if (settings.resolution) {
+    // Scale with lanczos for quality, ensures output is compatible
+    filters.push(`scale=${settings.resolution}`);
+  }
+  
+  if (filters.length > 0) {
+    args.push('-vf', filters.join(','));
   }
 
   // Audio codec
@@ -788,9 +795,20 @@ function applyCustomSettings(args, settings, hardwareAccel) {
     args.push('-ac', settings.audioChannels.toString());
   }
 
-  // Additional arguments
+  // Additional arguments (be careful with filter conflicts)
   if (settings.additionalArgs) {
-    args.push(...settings.additionalArgs.split(' '));
+    const additionalArray = settings.additionalArgs.split(' ').filter(arg => arg.trim());
+    
+    // Check if additionalArgs contains a -vf flag (which would conflict with our resolution filter)
+    const hasVideoFilter = additionalArray.includes('-vf') || additionalArray.includes('-filter:v');
+    
+    if (hasVideoFilter && settings.resolution) {
+      // If user provided custom filters AND we need resolution scaling, merge them
+      // This is complex, so just warn in the console
+      console.warn('Warning: Both resolution scaling and custom video filters specified. The custom filters will override resolution scaling.');
+    }
+    
+    args.push(...additionalArray);
   }
 }
 

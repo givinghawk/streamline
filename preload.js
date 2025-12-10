@@ -86,12 +86,22 @@ contextBridge.exposeInMainWorld('electron', {
   // Benchmark
   getSystemInfo: () => ipcRenderer.invoke('get-system-info'),
   downloadBenchmarkVideo: (url) => ipcRenderer.invoke('download-benchmark-video', url),
+  generateBenchmarkVideo: () => ipcRenderer.invoke('generate-benchmark-video'),
   runBenchmarkTest: (options) => ipcRenderer.invoke('run-benchmark-test', options),
   saveBenchmark: (data) => ipcRenderer.invoke('save-benchmark', data),
+  saveBenchmarkReport: (data) => ipcRenderer.invoke('save-benchmark-report', data),
+  archiveBenchmarkWithVideos: (options) => ipcRenderer.invoke('archive-benchmark-with-videos', options),
+  cleanupBenchmarkVideos: (videoPaths) => ipcRenderer.invoke('cleanup-benchmark-videos', videoPaths),
   loadBenchmark: (filePath) => ipcRenderer.invoke('load-benchmark', filePath),
   getSavedBenchmarks: () => ipcRenderer.invoke('get-saved-benchmarks'),
   detectEncoders: () => ipcRenderer.invoke('detect-encoders'),
   getDetectedEncoders: () => ipcRenderer.invoke('get-detected-encoders'),
+  onBenchmarkProgress: (callback) => {
+    ipcRenderer.on('benchmark-progress', (event, data) => callback(data));
+  },
+  removeBenchmarkProgressListener: () => {
+    ipcRenderer.removeAllListeners('benchmark-progress');
+  },
 });
 
 console.log('Preload script completed - window.electron should be available');

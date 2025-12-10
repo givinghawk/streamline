@@ -3,6 +3,13 @@ import { useSettings } from '../contexts/SettingsContext';
 
 const TEST_VIDEOS = [
   {
+    name: 'Built-in Test Pattern (30s, 1080p)',
+    url: 'builtin:benchmark',
+    resolution: '1080p',
+    size: '~10MB',
+    builtin: true
+  },
+  {
     name: 'Big Buck Bunny 480p',
     url: 'http://download.blender.org/peach/bigbuckbunny_movies/big_buck_bunny_480p_surround-fix.avi',
     resolution: '480p',
@@ -32,7 +39,6 @@ function Benchmark() {
   const { settings } = useSettings();
   const [selectedVideo, setSelectedVideo] = useState(TEST_VIDEOS[0]);
   const [downloadedPath, setDownloadedPath] = useState(null);
-  const [hardwareSupport, setHardwareSupport] = useState(null);
   const [downloading, setDownloading] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState(0);
   const [running, setRunning] = useState(false);
@@ -46,15 +52,17 @@ function Benchmark() {
   const [enabledTests, setEnabledTests] = useState({});
   const [showTestList, setShowTestList] = useState(false);
   const [cancelBenchmark, setCancelBenchmark] = useState(false);
-  const [benchmarkPreset, setBenchmarkPreset] = useState('recommended');
   const [estimatedTime, setEstimatedTime] = useState(0);
-  const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
   const [sortBy, setSortBy] = useState('speed');
   const [showComparison, setShowComparison] = useState(false);
   const [benchmarkStep, setBenchmarkStep] = useState('idle'); // 'idle' | 'detecting' | 'downloading' | 'benchmarking' | 'complete'
   const [detectionResults, setDetectionResults] = useState(null);
   const [detectionRunning, setDetectionRunning] = useState(false);
   const [detectionProgress, setDetectionProgress] = useState(0);
+  const [currentBenchmarkProgress, setCurrentBenchmarkProgress] = useState(null);
+  const [showCompletionModal, setShowCompletionModal] = useState(false);
+  const [benchmarkVideoPaths, setBenchmarkVideoPaths] = useState([]);
+  const [benchmarkStatuses, setBenchmarkStatuses] = useState({});  // Track status of each test
 
   const bgColor = settings.theme === 'dark' ? 'bg-surface' : 'bg-white';
   const borderColor = settings.theme === 'dark' ? 'border-gray-700' : 'border-gray-200';
@@ -62,116 +70,20 @@ function Benchmark() {
   const cardBg = settings.theme === 'dark' ? 'bg-surface-elevated' : 'bg-gray-50';
 
   useEffect(() => {
-    loadHardwareSupport();
     loadSystemInfo();
     loadSavedBenchmarks();
     loadCachedDetection();
   }, []);
 
-  const loadHardwareSupport = async () => {
-    try {
-      const support = await window.electron.checkHardwareSupport();
-      setHardwareSupport(support);
-      
-      // Initialize available codecs and enabled tests
-      const codecs = buildAvailableCodecs(support);
-      setAvailableCodecs(codecs);
-      
-      // Apply recommended preset by default
-      const preset = BENCHMARK_PRESETS.recommended;
-      const enabledMap = {};
-      codecs.forEach(codec => {
-        enabledMap[codec.name] = preset.filter(codec);
-      });
-      setEnabledTests(enabledMap);
-      updateEstimatedTime(enabledMap);
-    } catch (error) {
-      console.error('Failed to check hardware support:', error);
-    }
-  };
+  const buildAvailableCodecs = (detectedEncoders) => {
+    // Build codec list from actually detected encoders
+    if (!detectedEncoders || !Array.isArray(detectedEncoders)) return [];
 
-  const buildAvailableCodecs = (support) => {
-    if (!support) return [];
-
-    const codecs = [];
-
-    // Software encoding
-    codecs.push({ name: 'H.264 (Software)', codec: 'h264', hwAccel: null });
-    codecs.push({ name: 'H.265 (Software)', codec: 'h265', hwAccel: null });
-    codecs.push({ name: 'AV1 (Software)', codec: 'av1', hwAccel: null });
-
-    // Hardware encoding
-    if (support.nvidia) {
-      codecs.push({ name: 'H.264 (NVIDIA NVENC)', codec: 'h264', hwAccel: 'nvidia' });
-      codecs.push({ name: 'H.265 (NVIDIA NVENC)', codec: 'h265', hwAccel: 'nvidia' });
-      if (support.nvencAv1) {
-        codecs.push({ name: 'AV1 (NVIDIA NVENC)', codec: 'av1', hwAccel: 'nvidia' });
-      }
-    }
-
-    if (support.amd) {
-      codecs.push({ name: 'H.264 (AMD AMF)', codec: 'h264', hwAccel: 'amd' });
-      codecs.push({ name: 'H.265 (AMD AMF)', codec: 'h265', hwAccel: 'amd' });
-      if (support.amfAv1) {
-        codecs.push({ name: 'AV1 (AMD AMF)', codec: 'av1', hwAccel: 'amd' });
-      }
-    }
-
-    if (support.intel) {
-      codecs.push({ name: 'H.264 (Intel QSV)', codec: 'h264', hwAccel: 'intel' });
-      codecs.push({ name: 'H.265 (Intel QSV)', codec: 'h265', hwAccel: 'intel' });
-      if (support.qsvAv1) {
-        codecs.push({ name: 'AV1 (Intel QSV)', codec: 'av1', hwAccel: 'intel' });
-      }
-    }
-
-    if (support.apple) {
-      codecs.push({ name: 'H.264 (Apple VideoToolbox)', codec: 'h264', hwAccel: 'apple' });
-      codecs.push({ name: 'H.265 (Apple VideoToolbox)', codec: 'h265', hwAccel: 'apple' });
-    }
-
-    return codecs;
-  };
-
-  const BENCHMARK_PRESETS = {
-    quick: {
-      name: 'Quick Test',
-      description: 'Test only H.264 with hardware acceleration if available (1-2 minutes)',
-      filter: (codec) => codec.codec === 'h264' && codec.hwAccel !== null
-    },
-    recommended: {
-      name: 'Recommended',
-      description: 'Test H.264 and H.265 with hardware acceleration (3-5 minutes)',
-      filter: (codec) => ['h264', 'h265'].includes(codec.codec) && codec.hwAccel !== null
-    },
-    comprehensive: {
-      name: 'Comprehensive',
-      description: 'Test all available codecs including software encoding (10-20 minutes)',
-      filter: () => true
-    },
-    hardware_only: {
-      name: 'Hardware Only',
-      description: 'Test all hardware-accelerated encoders (5-8 minutes)',
-      filter: (codec) => codec.hwAccel !== null
-    },
-    software_only: {
-      name: 'Software Only',
-      description: 'Test software encoders for compatibility testing (15-30 minutes)',
-      filter: (codec) => codec.hwAccel === null
-    }
-  };
-
-  const applyPreset = (presetKey) => {
-    setBenchmarkPreset(presetKey);
-    const preset = BENCHMARK_PRESETS[presetKey];
-    const newEnabled = {};
-    
-    availableCodecs.forEach(codec => {
-      newEnabled[codec.name] = preset.filter(codec);
-    });
-    
-    setEnabledTests(newEnabled);
-    updateEstimatedTime(newEnabled);
+    return detectedEncoders.map(encoder => ({
+      name: encoder.name,
+      codec: encoder.codec,
+      hwAccel: encoder.hwAccel
+    }));
   };
 
   const updateEstimatedTime = (enabledMap) => {
@@ -201,21 +113,8 @@ function Benchmark() {
   };
 
   const loadCachedDetection = async () => {
-    try {
-      const cached = await window.electron.getDetectedEncoders();
-      if (cached) {
-        setDetectionResults(cached);
-        // Update available codecs based on detected encoders
-        const detectedNames = cached.detectedEncoders.map(e => e.name);
-        const newEnabled = {};
-        availableCodecs.forEach(codec => {
-          newEnabled[codec.name] = detectedNames.includes(codec.name);
-        });
-        setEnabledTests(newEnabled);
-      }
-    } catch (error) {
-      console.error('Failed to load cached detection:', error);
-    }
+    // No longer using cached detection - user needs to run detection each time
+    // This ensures fresh results and matches the first-time setup experience
   };
 
   const runEncoderDetection = async () => {
@@ -224,16 +123,93 @@ function Benchmark() {
     setDetectionProgress(0);
 
     try {
-      const results = await window.electron.detectEncoders();
+      // Test all possible codec combinations with a 2-frame test video
+      // This matches the first-time setup experience logic
+      const testsToRun = [
+        // Software encoders (always test these as baseline)
+        { codec: 'h264', hwAccel: null, name: 'H.264 (Software)' },
+        { codec: 'h265', hwAccel: null, name: 'H.265 (Software)' },
+        { codec: 'av1', hwAccel: null, name: 'AV1 (Software)' },
+        { codec: 'vp9', hwAccel: null, name: 'VP9 (Software)' },
+        { codec: 'vp8', hwAccel: null, name: 'VP8 (Software)' },
+        // Hardware encoders - NVIDIA
+        { codec: 'h264', hwAccel: 'nvidia', name: 'H.264 (NVIDIA NVENC)' },
+        { codec: 'h265', hwAccel: 'nvidia', name: 'H.265 (NVIDIA NVENC)' },
+        { codec: 'av1', hwAccel: 'nvidia', name: 'AV1 (NVIDIA NVENC)' },
+        // Hardware encoders - AMD
+        { codec: 'h264', hwAccel: 'amd', name: 'H.264 (AMD AMF)' },
+        { codec: 'h265', hwAccel: 'amd', name: 'H.265 (AMD AMF)' },
+        { codec: 'av1', hwAccel: 'amd', name: 'AV1 (AMD AMF)' },
+        // Hardware encoders - Intel
+        { codec: 'h264', hwAccel: 'intel', name: 'H.264 (Intel QSV)' },
+        { codec: 'h265', hwAccel: 'intel', name: 'H.265 (Intel QSV)' },
+        { codec: 'av1', hwAccel: 'intel', name: 'AV1 (Intel QSV)' },
+        { codec: 'vp9', hwAccel: 'intel', name: 'VP9 (Intel QSV)' },
+        // Hardware encoders - Apple
+        { codec: 'h264', hwAccel: 'apple', name: 'H.264 (Apple VideoToolbox)' },
+        { codec: 'h265', hwAccel: 'apple', name: 'H.265 (Apple VideoToolbox)' },
+        { codec: 'prores', hwAccel: 'apple', name: 'ProRes (Apple VideoToolbox)' }
+      ];
+
+      const detectedEncoders = [];
+      const failedEncoders = [];
+
+      // Test each codec with a 2-frame test video
+      for (let index = 0; index < testsToRun.length; index++) {
+        const test = testsToRun[index];
+        
+        // Update progress
+        setCurrentTest(test.name);
+        setDetectionProgress(Math.round((index / testsToRun.length) * 100));
+        
+        try {
+          await window.electron.runBenchmarkTest({
+            inputPath: 'builtin:2frame',
+            codec: test.codec,
+            hwAccel: test.hwAccel,
+            resolution: '1080p'
+          });
+          
+          detectedEncoders.push({
+            name: test.name,
+            codec: test.codec,
+            hwAccel: test.hwAccel,
+            available: true
+          });
+        } catch (error) {
+          failedEncoders.push({
+            name: test.name,
+            codec: test.codec,
+            hwAccel: test.hwAccel,
+            available: false,
+            error: error.message
+          });
+        }
+      }
+
+      setDetectionProgress(100);
+      setCurrentTest('');
+
+      const results = {
+        detectedEncoders,
+        failedEncoders,
+        totalTested: testsToRun.length,
+        detectionDate: new Date().toISOString()
+      };
+
       setDetectionResults(results);
 
-      // Update available codecs based on detected encoders
-      const detectedNames = results.detectedEncoders.map(e => e.name);
+      // Build available codecs from detected encoders
+      const codecs = buildAvailableCodecs(results.detectedEncoders);
+      setAvailableCodecs(codecs);
+      
+      // Enable all detected encoders by default
       const newEnabled = {};
-      availableCodecs.forEach(codec => {
-        newEnabled[codec.name] = detectedNames.includes(codec.name);
+      codecs.forEach(codec => {
+        newEnabled[codec.name] = true;
       });
       setEnabledTests(newEnabled);
+      updateEstimatedTime(newEnabled);
 
       // Move to next step after detection completes
       setBenchmarkStep('download');
@@ -242,16 +218,40 @@ function Benchmark() {
       setBenchmarkStep('idle');
     } finally {
       setDetectionRunning(false);
+      setDetectionProgress(0);
+      setCurrentTest('');
     }
   };
 
   const handleDownloadTestVideo = async () => {
+    // Handle built-in test video generation
+    if (selectedVideo.builtin && selectedVideo.url === 'builtin:benchmark') {
+      setDownloading(true);
+      setDownloadProgress(0);
+      
+      try {
+        const result = await window.electron.generateBenchmarkVideo();
+        setDownloadedPath(result.filePath);
+        setBenchmarkStep('benchmark');
+      } catch (error) {
+        alert(`Failed to generate test video: ${error.message}`);
+      } finally {
+        setDownloading(false);
+        setDownloadProgress(0);
+      }
+      return;
+    }
+    
+    // Handle regular video downloads
     setDownloading(true);
     setDownloadProgress(0);
 
     try {
       window.electron.onDownloadProgress((data) => {
-        setDownloadProgress(data.progress);
+        // Only update if this is the download for our selected video
+        if (data.url === selectedVideo.url) {
+          setDownloadProgress(data.progress);
+        }
       });
 
       const result = await window.electron.downloadBenchmarkVideo(selectedVideo.url);
@@ -278,6 +278,20 @@ function Benchmark() {
     setCancelBenchmark(false);
     setResults([]);
     setBenchmarkStep('benchmarking');
+    setBenchmarkVideoPaths([]);
+
+    // Initialize benchmark statuses
+    const testsToRun = availableCodecs.filter(codec => enabledTests[codec.name]);
+    const initialStatuses = {};
+    testsToRun.forEach(codec => {
+      initialStatuses[codec.name] = 'pending';
+    });
+    setBenchmarkStatuses(initialStatuses);
+
+    // Set up benchmark progress listener
+    window.electron.onBenchmarkProgress((data) => {
+      setCurrentBenchmarkProgress(data.progress);
+    });
 
     // Verify the downloaded file exists and is readable
     try {
@@ -289,13 +303,13 @@ function Benchmark() {
       alert(`File validation failed: ${checkError.message}`);
       setRunning(false);
       setBenchmarkStep('download');
+      window.electron.removeBenchmarkProgressListener();
       return;
     }
 
-    // Filter tests to only enabled ones (which are the detected encoders)
-    const testsToRun = availableCodecs.filter(codec => enabledTests[codec.name]);
     setTotalTests(testsToRun.length);
     const benchmarkResults = [];
+    const videoPaths = [];
 
     for (let index = 0; index < testsToRun.length; index++) {
       // Check if user clicked cancel
@@ -307,6 +321,10 @@ function Benchmark() {
       const codecTest = testsToRun[index];
       setCurrentTest(codecTest.name);
       setTestProgress(index);
+      setCurrentBenchmarkProgress(null);
+      
+      // Mark as running
+      setBenchmarkStatuses(prev => ({ ...prev, [codecTest.name]: 'running' }));
 
       try {
         const result = await window.electron.runBenchmarkTest({
@@ -319,8 +337,17 @@ function Benchmark() {
         benchmarkResults.push({
           ...codecTest,
           ...result,
+          encoderType: codecTest.hwAccel ? 'hardware' : 'software',
           timestamp: new Date().toISOString()
         });
+
+        // Mark as complete
+        setBenchmarkStatuses(prev => ({ ...prev, [codecTest.name]: 'complete' }));
+
+        // Collect video paths for later archiving/cleanup
+        if (result.outputPath) {
+          videoPaths.push(result.outputPath);
+        }
 
         setResults([...benchmarkResults]);
       } catch (error) {
@@ -328,18 +355,31 @@ function Benchmark() {
         benchmarkResults.push({
           ...codecTest,
           error: error.message,
+          encoderType: codecTest.hwAccel ? 'hardware' : 'software',
           timestamp: new Date().toISOString()
         });
+        
+        // Mark as failed
+        setBenchmarkStatuses(prev => ({ ...prev, [codecTest.name]: 'failed' }));
+        
         setResults([...benchmarkResults]);
       }
     }
 
+    window.electron.removeBenchmarkProgressListener();
+    setBenchmarkVideoPaths(videoPaths);
     setRunning(false);
     setCurrentTest(null);
     setTestProgress(0);
     setTotalTests(0);
     setCancelBenchmark(false);
+    setCurrentBenchmarkProgress(null);
     setBenchmarkStep('complete');
+    
+    // Show completion modal after a small delay to ensure state updates
+    setTimeout(() => {
+      setShowCompletionModal(true);
+    }, 100);
   };
 
   const toggleTest = (testName) => {
@@ -349,7 +389,6 @@ function Benchmark() {
     };
     setEnabledTests(newEnabled);
     updateEstimatedTime(newEnabled);
-    setBenchmarkPreset('custom');
   };
 
   const selectAllTests = () => {
@@ -359,7 +398,6 @@ function Benchmark() {
     });
     setEnabledTests(newEnabled);
     updateEstimatedTime(newEnabled);
-    setBenchmarkPreset('custom');
   };
 
   const deselectAllTests = () => {
@@ -369,7 +407,6 @@ function Benchmark() {
     });
     setEnabledTests(newEnabled);
     updateEstimatedTime(newEnabled);
-    setBenchmarkPreset('custom');
   };
 
   const saveBenchmark = async () => {
@@ -386,10 +423,76 @@ function Benchmark() {
         timestamp: new Date().toISOString()
       });
 
-      alert(`Benchmark saved to ${filePath}`);
-      loadSavedBenchmarks();
+      if (filePath) {
+        alert(`Benchmark saved to ${filePath}`);
+        loadSavedBenchmarks();
+      }
     } catch (error) {
       alert(`Failed to save benchmark: ${error.message}`);
+    }
+  };
+
+  const saveBenchmarkReport = async () => {
+    if (results.length === 0) {
+      alert('No benchmark results to save');
+      return;
+    }
+
+    try {
+      const filePath = await window.electron.saveBenchmarkReport({
+        results,
+        systemInfo,
+        testVideo: selectedVideo,
+        timestamp: new Date().toISOString()
+      });
+
+      if (filePath) {
+        alert(`Benchmark report saved to ${filePath}`);
+      }
+    } catch (error) {
+      alert(`Failed to save benchmark report: ${error.message}`);
+    }
+  };
+
+  const archiveBenchmarkWithVideos = async () => {
+    if (results.length === 0 || benchmarkVideoPaths.length === 0) {
+      alert('No benchmark results or videos to archive');
+      return;
+    }
+
+    try {
+      const result = await window.electron.archiveBenchmarkWithVideos({
+        benchmarkData: {
+          results,
+          systemInfo,
+          testVideo: selectedVideo,
+          timestamp: new Date().toISOString()
+        },
+        videoPaths: benchmarkVideoPaths
+      });
+
+      if (result) {
+        alert(`Benchmark archive saved to ${result.filePath} (${(result.size / 1024 / 1024).toFixed(2)} MB)`);
+      }
+    } catch (error) {
+      alert(`Failed to create archive: ${error.message}`);
+    }
+  };
+
+  const cleanupBenchmarkVideos = async () => {
+    if (benchmarkVideoPaths.length === 0) {
+      alert('No videos to cleanup');
+      return;
+    }
+
+    try {
+      const result = await window.electron.cleanupBenchmarkVideos(benchmarkVideoPaths);
+      if (result.success) {
+        alert(`Cleaned up ${result.deleted} video(s)`);
+        setBenchmarkVideoPaths([]);
+      }
+    } catch (error) {
+      alert(`Failed to cleanup videos: ${error.message}`);
     }
   };
 
@@ -418,10 +521,13 @@ function Benchmark() {
     return `~${hours}h ${remainingMins}m`;
   };
 
-  const getVideoSizeDisplay = () => {
-    if (downloading) return `Downloading... ${downloadProgress}%`;
-    if (downloadedPath) return '✓ Downloaded';
-    return selectedVideo.size;
+  const getVideoSizeDisplay = (video) => {
+    // Only show download status for the currently selected video
+    if (selectedVideo.url === video.url) {
+      if (downloading) return `Downloading... ${downloadProgress}%`;
+      if (downloadedPath) return '✓ Downloaded';
+    }
+    return video.size;
   };
 
   const sortResults = (results, sortBy) => {
@@ -518,10 +624,25 @@ function Benchmark() {
           <div className={`${cardBg} border ${borderColor} rounded-lg p-4`}>
             <h2 className="text-xl font-semibold mb-4 text-primary-400">Step 1: Detect Available Encoders</h2>
             <p className={`${textColor} mb-4`}>
-              The benchmark will first detect which hardware encoders are available on your system. This will test all possible codec and platform combinations.
+              The benchmark will detect which encoders actually work on your system by testing all possible codec and hardware acceleration combinations. All detected encoders will be benchmarked.
             </p>
             
-            {detectionResults && (
+            {detectionRunning && (
+              <div className="mb-4 p-4 bg-blue-500/10 border border-blue-500/30 rounded">
+                <div className="mb-2">
+                  <p className="text-blue-400 font-semibold">Testing: {currentTest}</p>
+                  <p className="text-blue-300 text-sm">Progress: {detectionProgress}%</p>
+                </div>
+                <div className="w-full bg-gray-700 rounded-full h-3">
+                  <div
+                    className="bg-blue-500 h-3 rounded-full transition-all duration-300"
+                    style={{ width: `${detectionProgress}%` }}
+                  />
+                </div>
+              </div>
+            )}
+            
+            {detectionResults && !detectionRunning && (
               <div className="mb-4 space-y-3">
                 <div className={`border ${borderColor} rounded p-3 bg-green-500/10 border-green-500/30`}>
                   <p className="text-green-400 text-sm font-semibold mb-2">Detection Complete</p>
@@ -685,7 +806,7 @@ function Benchmark() {
                 >
                   <div className="font-semibold">{video.name}</div>
                   <div className="text-sm text-gray-500">
-                    {video.resolution} • {getVideoSizeDisplay()}
+                    {video.resolution} • {getVideoSizeDisplay(video)}
                   </div>
                 </button>
               ))}
@@ -725,41 +846,11 @@ function Benchmark() {
               </div>
             )}
 
-            {/* Benchmark Presets */}
+            {/* Codec Selection */}
             <div className="mb-4">
-              <p className="text-sm font-semibold text-primary-300 mb-3">Preset Configuration:</p>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
-                {Object.entries(BENCHMARK_PRESETS).map(([key, preset]) => (
-                  <button
-                    key={key}
-                    onClick={() => applyPreset(key)}
-                    disabled={running}
-                    className={`p-4 rounded border text-left transition-colors ${
-                      benchmarkPreset === key
-                        ? 'border-primary-500 bg-primary-500/10'
-                        : `border-gray-600 hover:border-primary-400`
-                    } disabled:opacity-50 disabled:cursor-not-allowed`}
-                  >
-                    <div className="font-semibold text-primary-300">{preset.name}</div>
-                    <div className="text-sm text-gray-500 mt-1">{preset.description}</div>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Advanced Options Toggle */}
-            <button
-              onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
-              className="flex items-center gap-2 text-primary-400 hover:text-primary-300 transition-colors mb-3"
-              disabled={running}
-            >
-              <span>{showAdvancedOptions ? '▼' : '▶'}</span>
-              <span>Advanced Options</span>
-            </button>
-
-            {showAdvancedOptions && (
-              <div className={`p-4 border ${borderColor} rounded bg-opacity-50 mb-4`}>
-                <div className="flex gap-2 mb-3">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-sm font-semibold text-primary-300">Select Codecs to Benchmark:</p>
+                <div className="flex gap-2">
                   <button
                     onClick={selectAllTests}
                     disabled={running}
@@ -774,13 +865,10 @@ function Benchmark() {
                   >
                     Deselect All
                   </button>
-                  {benchmarkPreset === 'custom' && (
-                    <span className="text-yellow-500 text-sm flex items-center">
-                      ⚠ Custom selection
-                    </span>
-                  )}
                 </div>
+              </div>
 
+              <div className={`p-4 border ${borderColor} rounded bg-opacity-50`}>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-48 overflow-y-auto">
                   {availableCodecs.map(codec => (
                     <label key={codec.name} className="flex items-center gap-2 cursor-pointer hover:bg-white/5 p-2 rounded transition-colors">
@@ -796,7 +884,7 @@ function Benchmark() {
                   ))}
                 </div>
               </div>
-            )}
+            </div>
 
             {/* Estimation Summary */}
             <div className="p-3 bg-blue-500/10 border border-blue-500/30 rounded mb-4">
@@ -823,6 +911,14 @@ function Benchmark() {
                       <div>
                         <p className="text-blue-400 font-semibold">Currently testing: {currentTest}</p>
                         <p className="text-blue-300 text-sm">Progress: {testProgress + 1} of {totalTests}</p>
+                        {currentBenchmarkProgress && (
+                          <div className="text-blue-200 text-xs mt-1 space-y-0.5">
+                            <div>Frame: {currentBenchmarkProgress.frame || 0} | FPS: {currentBenchmarkProgress.fps?.toFixed(1) || 0} | Speed: {currentBenchmarkProgress.speed?.toFixed(2) || 0}x</div>
+                            {currentBenchmarkProgress.time && (
+                              <div>Time: {Math.floor(currentBenchmarkProgress.time / 60)}:{(currentBenchmarkProgress.time % 60).toFixed(1).padStart(4, '0')}</div>
+                            )}
+                          </div>
+                        )}
                       </div>
                       <button
                         onClick={() => setCancelBenchmark(true)}
@@ -839,6 +935,35 @@ function Benchmark() {
                   </div>
                   <div className="text-blue-300 text-sm mt-2">
                     Estimated time remaining: {formatEstimatedTime((totalTests - testProgress - 1) * (estimatedTime / totalTests))}
+                  </div>
+                </div>
+
+                {/* Benchmark Status Checklist */}
+                <div className={`p-4 border ${borderColor} rounded bg-opacity-50`}>
+                  <p className="text-sm font-semibold text-primary-300 mb-2">Benchmark Status:</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-64 overflow-y-auto">
+                    {Object.entries(benchmarkStatuses).map(([name, status]) => (
+                      <div key={name} className="flex items-center gap-2 text-sm">
+                        {status === 'pending' && (
+                          <span className="text-gray-500">⏳</span>
+                        )}
+                        {status === 'running' && (
+                          <span className="text-blue-400 animate-pulse">▶️</span>
+                        )}
+                        {status === 'complete' && (
+                          <span className="text-green-400">✅</span>
+                        )}
+                        {status === 'failed' && (
+                          <span className="text-red-400">❌</span>
+                        )}
+                        <span className={
+                          status === 'pending' ? 'text-gray-500' :
+                          status === 'running' ? 'text-blue-400' :
+                          status === 'complete' ? 'text-green-400' :
+                          'text-red-400'
+                        }>{name}</span>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>
@@ -997,7 +1122,14 @@ function Benchmark() {
                         </td>
                         <td className="p-2">{result.hwAccel || 'Software'}</td>
                         {result.error ? (
-                          <td colSpan={5} className="p-2 text-red-400">Error: {result.error}</td>
+                          <td colSpan={5} className="p-2 text-red-400 break-words whitespace-pre-wrap text-xs">
+                            <details className="cursor-pointer">
+                              <summary className="font-semibold">Error (click to expand)</summary>
+                              <pre className="mt-2 bg-red-900/20 p-2 rounded overflow-x-auto text-red-300 text-xs">
+                                {result.error}
+                              </pre>
+                            </details>
+                          </td>
                         ) : (
                           <>
                             <td className="p-2 text-right">{formatDuration(result.duration)}</td>
@@ -1061,6 +1193,125 @@ function Benchmark() {
           </div>
         )}
       </div>
+
+      {/* Completion Modal */}
+      {showCompletionModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className={`${cardBg} border ${borderColor} rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto`}>
+            <div className="p-6">
+              <h2 className="text-2xl font-bold text-primary-400 mb-4">Benchmark Complete!</h2>
+              
+              <div className="mb-6 space-y-3">
+                <div className={`p-4 bg-green-500/10 border border-green-500/30 rounded`}>
+                  <p className="text-green-400 font-semibold mb-2">Results Summary</p>
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div>
+                      <span className="text-gray-400">Total tests:</span>
+                      <span className="ml-2 font-semibold text-green-300">{results.length}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-400">Successful:</span>
+                      <span className="ml-2 font-semibold text-green-300">{results.filter(r => !r.error).length}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-400">Failed:</span>
+                      <span className="ml-2 font-semibold text-red-400">{results.filter(r => r.error).length}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-400">Playable videos:</span>
+                      <span className="ml-2 font-semibold text-green-300">{results.filter(r => r.isPlayable).length}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {results.some(r => !r.isPlayable && !r.error) && (
+                  <div className={`p-4 bg-yellow-500/10 border border-yellow-500/30 rounded`}>
+                    <p className="text-yellow-400 font-semibold mb-2">⚠️ Warning</p>
+                    <p className="text-yellow-300 text-sm">
+                      Some videos encoded successfully but may not be playable. This could indicate codec compatibility issues.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-3">
+                <h3 className="font-semibold text-primary-300 mb-2">Save Options</h3>
+                
+                <button
+                  onClick={async () => {
+                    await saveBenchmark();
+                  }}
+                  className="w-full px-4 py-3 bg-primary-600 hover:bg-primary-700 rounded text-white transition-colors text-left flex items-center gap-3"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                  </svg>
+                  <div>
+                    <div className="font-semibold">Save .slbench file</div>
+                    <div className="text-sm opacity-80">Save benchmark data for later analysis</div>
+                  </div>
+                </button>
+
+                <button
+                  onClick={async () => {
+                    await saveBenchmarkReport();
+                  }}
+                  className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 rounded text-white transition-colors text-left flex items-center gap-3"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  <div>
+                    <div className="font-semibold">Save .slreport file</div>
+                    <div className="text-sm opacity-80">Save report for web comparison system</div>
+                  </div>
+                </button>
+
+                <button
+                  onClick={async () => {
+                    await archiveBenchmarkWithVideos();
+                  }}
+                  className="w-full px-4 py-3 bg-purple-600 hover:bg-purple-700 rounded text-white transition-colors text-left flex items-center gap-3"
+                  disabled={benchmarkVideoPaths.length === 0}
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                  </svg>
+                  <div>
+                    <div className="font-semibold">Save archive with videos</div>
+                    <div className="text-sm opacity-80">Create ZIP archive with benchmark data and encoded videos</div>
+                  </div>
+                </button>
+
+                <button
+                  onClick={async () => {
+                    await cleanupBenchmarkVideos();
+                  }}
+                  className="w-full px-4 py-3 bg-red-600 hover:bg-red-700 rounded text-white transition-colors text-left flex items-center gap-3"
+                  disabled={benchmarkVideoPaths.length === 0}
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                  <div>
+                    <div className="font-semibold">Cleanup video files</div>
+                    <div className="text-sm opacity-80">Delete all encoded benchmark videos ({benchmarkVideoPaths.length} files)</div>
+                  </div>
+                </button>
+              </div>
+
+              <div className="mt-6 flex justify-end gap-3">
+                <button
+                  onClick={() => setShowCompletionModal(false)}
+                  className="px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded text-white transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
