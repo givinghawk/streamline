@@ -584,6 +584,14 @@ async function buildFFmpegCommand(inputPath, outputPath, preset, customSettings,
     applyPreset(args, preset, hardwareAccel);
   }
 
+  // If output format is HLS (m3u8), apply HLS-specific args
+  const outputFormat = (customSettings && customSettings.outputFormat) || (preset && preset.settings && preset.settings.outputFormat);
+  if (outputFormat === 'm3u8' || outputFormat === 'hls') {
+    // Combine settings from preset and customSettings, with custom taking precedence
+    const combinedSettings = { ...(preset ? preset.settings || {} : {}), ...(customSettings || {}) };
+    applyHlsSettings(args, combinedSettings, outputPath);
+  }
+
   // Output file
   args.push('-y'); // Overwrite output file
   args.push(outputPath);
@@ -595,6 +603,15 @@ async function buildFFmpegCommand(inputPath, outputPath, preset, customSettings,
  * Applies preset settings to FFmpeg command
  */
 function applyPreset(args, preset, hardwareAccel) {
+  // If a preset object was passed with settings (including custom HLS presets),
+  // prefer those settings rather than the hardcoded mapping below. This allows
+  // presets defined in constants/presets.js to be honored directly.
+  if (preset && preset.settings && Object.keys(preset.settings).length > 0) {
+    // Convert keys in preset.settings to the shape expected by applyCustomSettings
+    const settings = preset.settings;
+    applyCustomSettings(args, settings, hardwareAccel);
+    return;
+  }
   const presets = {
     'high-quality': {
       video: { codec: 'libx264', crf: 18, preset: 'slow' },
@@ -792,6 +809,21 @@ function applyCustomSettings(args, settings, hardwareAccel) {
   if (settings.additionalArgs) {
     args.push(...settings.additionalArgs.split(' '));
   }
+}
+
+/**
+ * Applies HLS-specific settings when the output format is m3u8
+ */
+function applyHlsSettings(args, settings, outputPath) {
+  // Default to 6s segments if not specified
+  const hlsTime = settings.hlsSegmentTime || settings.hls_time || 6;
+  args.push('-f', 'hls');
+  args.push('-hls_time', hlsTime.toString());
+  args.push('-hls_playlist_type', 'vod');
+
+  // Generate segment filename pattern next to the output playlist
+  const segmentPattern = path.join(path.dirname(outputPath), `${path.parse(outputPath).name}_%03d.ts`);
+  args.push('-hls_segment_filename', segmentPattern);
 }
 
 /**

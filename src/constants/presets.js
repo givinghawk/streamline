@@ -36,6 +36,46 @@ export const PRESETS = [
     description: 'Next-gen codec, best compression (AV1, CRF 25)',
     category: 'video',
   },
+  {
+    id: 'hls-standard',
+    name: 'HLS Standard (m3u8)',
+    description: 'Create HLS (m3u8) playlist with TS segments (H.264, AAC)',
+    category: 'video',
+    settings: {
+      outputFormat: 'm3u8',
+      videoCodec: 'libx264',
+      audioCodec: 'aac',
+      hlsSegmentTime: 6,
+    },
+  },
+  {
+    id: 'hls-low',
+    name: 'HLS Low Quality',
+    description: 'Low bitrate HLS for mobile/slow connections (H.264, AAC)',
+    category: 'video',
+    settings: {
+      outputFormat: 'm3u8',
+      videoCodec: 'libx264',
+      audioCodec: 'aac',
+      videoBitrate: '500k',
+      audioBitrate: '64k',
+      hlsSegmentTime: 6,
+    },
+  },
+  {
+    id: 'hls-high',
+    name: 'HLS High Quality',
+    description: 'High bitrate HLS for high quality streaming (H.264, AAC)',
+    category: 'video',
+    settings: {
+      outputFormat: 'm3u8',
+      videoCodec: 'libx264',
+      audioCodec: 'aac',
+      videoBitrate: '3000k',
+      audioBitrate: '128k',
+      hlsSegmentTime: 6,
+    },
+  },
   
   // Audio Presets
   {

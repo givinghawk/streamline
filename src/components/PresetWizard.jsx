@@ -104,6 +104,8 @@ function PresetWizard({ preset = null, onSave, onClose }) {
     threads: preset?.settings?.threads || '0',
     twoPass: preset?.settings?.twoPass || false,
     customArgs: preset?.settings?.customArgs || '',
+    // HLS
+    hlsSegmentTime: preset?.settings?.hlsSegmentTime || 6,
   });
 
   const steps = [
@@ -260,6 +262,14 @@ function PresetWizard({ preset = null, onSave, onClose }) {
     }
     
     // Output
+    // HLS specific preview args
+    if (formData.outputFormat === 'm3u8' || formData.outputFormat === 'hls') {
+      const hlsTime = formData.hlsSegmentTime || 6;
+      args.push('-f', 'hls');
+      args.push('-hls_time', hlsTime);
+      args.push('-hls_playlist_type', 'vod');
+      args.push('-hls_segment_filename', `${formData.name || 'output'}_%03d.ts`);
+    }
     args.push('output.' + formData.outputFormat);
     
     return 'ffmpeg ' + args.join(' ');
@@ -372,6 +382,7 @@ function PresetWizard({ preset = null, onSave, onClose }) {
                     <option value="mov">MOV (QuickTime)</option>
                     <option value="avi">AVI</option>
                     <option value="ts">TS (MPEG Transport Stream)</option>
+                    <option value="m3u8">HLS (m3u8)</option>
                   </>
                 )}
                 {formData.category === 'audio' && (
@@ -1073,6 +1084,21 @@ function PresetWizard({ preset = null, onSave, onClose }) {
                     <label htmlFor="fastStart" className="text-sm text-gray-300">
                       Enable fast start (web streaming)
                     </label>
+                  </div>
+                )}
+
+                {formData.outputFormat === 'm3u8' && (
+                  <div className="flex items-center space-x-3">
+                    <label htmlFor="hlsSegmentTime" className="text-sm text-gray-300">HLS Segment Time (seconds)</label>
+                    <input
+                      id="hlsSegmentTime"
+                      type="number"
+                      min="1"
+                      max="30"
+                      value={formData.hlsSegmentTime}
+                      onChange={(e) => updateFormData('hlsSegmentTime', e.target.value)}
+                      className="input w-24"
+                    />
                   </div>
                 )}
               </div>

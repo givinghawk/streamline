@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { UploadIcon, FileIcon, VideoIcon, AudioIcon, ImageIcon, CloseIcon } from './icons/Icons';
 
-function DropZone({ onFilesAdded, files, fileType }) {
+function DropZone({ onFilesAdded, files, fileType, onRemoveFile }) {
   const [isDragging, setIsDragging] = useState(false);
 
   const handleDragOver = (e) => {
@@ -111,6 +111,15 @@ function DropZone({ onFilesAdded, files, fileType }) {
   };
 
   const removeFile = (index) => {
+    const fileToRemove = files[index];
+    if (typeof onRemoveFile === 'function') {
+      onRemoveFile(fileToRemove, index);
+      return;
+    }
+
+    // Fallback: if onRemoveFile isn't provided, emulate old behaviour by
+    // calling onFilesAdded with the updated list. Note: in the parent
+    // component this should be handled specifically via onRemoveFile.
     const newFiles = files.filter((_, i) => i !== index);
     onFilesAdded(newFiles);
   };

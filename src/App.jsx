@@ -315,6 +315,24 @@ function App() {
     }
   };
 
+  const handleRemoveFile = (fileToRemove) => {
+    // Remove from preview files
+    setFiles(prev => prev.filter(f => f.path !== fileToRemove.path));
+
+    // Also remove any queued items that reference this file
+    setQueue(prevQueue => prevQueue.filter(item => item.file.path !== fileToRemove.path));
+
+    // Clear preview if it was the current file
+    setFiles(prevFiles => {
+      const remaining = prevFiles.filter(f => f.path !== fileToRemove.path);
+      if (remaining.length === 0) {
+        setFileType(null);
+        setFileInfo(null);
+      }
+      return remaining;
+    });
+  };
+
   const handleRecentFileSelect = async (filePath) => {
     try {
       const fileInfo = await window.electron.getFileInfo(filePath);
@@ -941,7 +959,7 @@ function App() {
         ) : currentMode === 'import' ? (
           /* Import Mode - Just drop zone and basic info */
           <div className="space-y-6">
-            <DropZone onFilesAdded={handleFilesAdded} files={files} fileType={fileType} />
+            <DropZone onFilesAdded={handleFilesAdded} files={files} fileType={fileType} onRemoveFile={handleRemoveFile} />
             
             {fileInfo && (
               <BasicFileInfo 
