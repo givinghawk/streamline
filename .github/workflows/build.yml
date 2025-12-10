@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - develop
+      - hls
     tags:
       - 'v*.*.*'
   pull_request:
